@@ -16,7 +16,7 @@ export const router = createBrowserRouter(
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot" element={<Forgot />} />
-      <Route path="/reset/:token" element={<Reset />} /> {/* ⬅️ nueva ruta */}
+      <Route path="/reset/:token" element={<Reset />} /> 
       <Route path="*" element={<Login />} />
     </Route>
   )

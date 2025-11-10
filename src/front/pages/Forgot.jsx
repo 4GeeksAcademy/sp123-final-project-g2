@@ -16,7 +16,7 @@ export function Forgot() {
     setErr("");
     if (!email) return setErr("Introduce tu email.");
     console.log("Forgot (solo UI):", email);
-    setSent(true); // solo UI
+    setSent(true);
   };
 
   const goWithToken = () => {
