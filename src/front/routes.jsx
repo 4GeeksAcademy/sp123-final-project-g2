@@ -7,6 +7,7 @@ import { Layout } from "./pages/Layout";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { Forgot } from "./pages/Forgot";
+import { Reset } from "./pages/Reset"; 
 import { MapView } from "./pages/MapView";
 
 
@@ -17,6 +18,7 @@ export const router = createBrowserRouter(
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot" element={<Forgot />} />
+      <Route path="/reset/:token" element={<Reset />} /> 
       <Route path="/map" element={<MapView />} />
       <Route path="*" element={<Login />} />
     </Route>
