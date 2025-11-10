@@ -8,8 +8,11 @@ import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { Forgot } from "./pages/Forgot";
 
-import User from "./pages/User";
 
+
+
+import User from "./pages/User";
+import { MapView } from "./pages/MapView";
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
