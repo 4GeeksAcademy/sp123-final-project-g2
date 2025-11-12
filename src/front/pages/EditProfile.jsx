@@ -50,7 +50,7 @@ export const EditProfile = () => {
         },
         body: JSON.stringify(formData),
       });
-      if (!resp.ok) throw new Error("Error updating profile");
+      if (!resp.ok) throw new Error("Error subida perfil");
       navigate("/profile");
     } catch (err) {
       console.error(err);
@@ -60,7 +60,7 @@ export const EditProfile = () => {
   if (loading)
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
-        <Spinner animation="border" variant="light" />
+        <Spinner animation="border" variant="dark" />
       </div>
     );
 
@@ -70,11 +70,11 @@ export const EditProfile = () => {
       className="min-vh-100 d-flex flex-column align-items-center justify-content-center bg-dark text-light py-5"
     >
       <Card className="p-4 bg-secondary text-light" style={{ maxWidth: "500px", borderRadius: "20px" }}>
-        <h3 className="text-center mb-4">Edit Profile</h3>
+        <h3 className="text-center mb-4">Editar Perfil</h3>
 
         <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">
-            <Form.Label>Name</Form.Label>
+            <Form.Label>Nombre</Form.Label>
             <Form.Control
               type="text"
               name="name"
@@ -85,7 +85,7 @@ export const EditProfile = () => {
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Biography</Form.Label>
+            <Form.Label>Biografía</Form.Label>
             <Form.Control
               as="textarea"
               rows={3}
@@ -96,7 +96,7 @@ export const EditProfile = () => {
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Sports</Form.Label>
+            <Form.Label>Deporte</Form.Label>
             <Form.Control
               type="text"
               name="sports"
@@ -106,7 +106,7 @@ export const EditProfile = () => {
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Level</Form.Label>
+            <Form.Label>Nivel</Form.Label>
             <Form.Control
               type="text"
               name="level"
@@ -116,10 +116,10 @@ export const EditProfile = () => {
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Avatar URL</Form.Label>
+            <Form.Label>Avatar</Form.Label>
             <Form.Control
               type="text"
-              name="avatar_url"
+              name="avatar"
               value={formData.avatar_url || ""}
               onChange={handleChange}
             />
@@ -127,10 +127,10 @@ export const EditProfile = () => {
 
           <div className="d-flex justify-content-between">
             <Button variant="secondary" onClick={() => navigate("/profile")}>
-              Cancel
+              Cancelar
             </Button>
             <Button variant="warning" type="submit">
-              Save Changes
+              Guardar cambios
             </Button>
           </div>
         </Form>

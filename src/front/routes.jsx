@@ -8,6 +8,7 @@ import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { Forgot } from "./pages/Forgot";
 import { MapView } from "./pages/MapView";
+import { Profile } from "./pages/Profile";
 
 
 export const router = createBrowserRouter(
@@ -18,6 +19,7 @@ export const router = createBrowserRouter(
       <Route path="/register" element={<Register />} />
       <Route path="/forgot" element={<Forgot />} />
       <Route path="/map" element={<MapView />} />
+      <Route path="/profile" element={<Profile />} />
       <Route path="*" element={<Login />} />
     </Route>
   )

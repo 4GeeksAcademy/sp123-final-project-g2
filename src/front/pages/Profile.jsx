@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button, Container, Row, Col, Spinner } from "react-bootstrap";
 
-export const ProfileView = () => {
+export const Profile = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
@@ -28,7 +28,7 @@ export const ProfileView = () => {
   if (!user)
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
-        <Spinner animation="border" variant="light" />
+        <Spinner animation="border" variant="dark" />
       </div>
     );
 
@@ -52,8 +52,8 @@ export const ProfileView = () => {
 
         <hr />
         <div className="text-start px-3">
-          <p><strong>Sports:</strong> {user.sports || "Not specified"}</p>
-          <p><strong>Level:</strong> {user.level || "Not specified"}</p>
+          <p><strong>Deporte:</strong> {user.sports || "Not specified"}</p>
+          <p><strong>Nivel:</strong> {user.level || "Not specified"}</p>
         </div>
 
         <Button
@@ -61,7 +61,7 @@ export const ProfileView = () => {
           className="mt-3"
           onClick={() => navigate("/edit-profile")}
         >
-          Edit Profile
+          Editar Perfil
         </Button>
       </Card>
     </Container>
