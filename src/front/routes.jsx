@@ -7,10 +7,12 @@ import { Layout } from "./pages/Layout";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { Forgot } from "./pages/Forgot";
+import { Reset } from "./pages/Reset"; 
 import { MapView } from "./pages/MapView";
 import { Profile } from "./pages/Profile";
 
 
+import User from "./pages/User";
 export const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<Layout />} errorElement={<h1>Not found!</h1>}>
@@ -18,9 +20,11 @@ export const router = createBrowserRouter(
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot" element={<Forgot />} />
+      <Route path="/reset/:token" element={<Reset />} /> 
       <Route path="/map" element={<MapView />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="*" element={<Login />} />
+      <Route path="/user" element={<User />} />
     </Route>
   )
 );
