@@ -12,7 +12,8 @@ export const login = async (body) => {
     
     console.log(data);
     console.log(data.access_token);
-    localStorage.setItem("JWT-STORAGE-KEY", data.access_token);
+    localStorage.setItem("JWT-STORAGE-KEY", data.token);
+    localStorage.setItem("USER", data.user);
     return {data, status: response.status, "ok": response.ok };
   } catch (error) {
     console.log("Error en login.js", error)
@@ -34,3 +35,4 @@ export const register = async (body) => {
   const data = await response.json()
     return {data, status: response.status}
   }
+

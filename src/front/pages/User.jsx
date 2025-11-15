@@ -61,26 +61,18 @@ export default function User() {
           <div className="auth-card">
             <div className="auth-title"><h3>Profile</h3></div>
             <div className="auth-title">
-              <h1>aqui va la Foto de perfil</h1>
-              <p><button>Cambiar foto de perfil</button></p>
-            </div>
-            <div className="auth-sub">
-              
+            <button onClick={() => {
+          return nav('/profile')
+        }}>Profile</button>
+            <button onClick={() => {
+          return nav('/userSaves')
+        }}>Actividades Guardadas</button>
+            <button onClick={() => {
+          return nav('/ajustes')
+        }}>Ajustes</button>
 
-              <form onSubmit={handleSubmit} className='form-control '>
-                <input type="text" id = "Nombre"/>
-                <label className='form-label input-dark' ></label>
-              </form>
-
-
-              <h5>Nombre</h5>
-              <h5>Apellidos</h5>
-              <h5>Ubicacion</h5>
-              <h5>Numero de Telefono</h5>
-              
 
             </div>
-
           </div>
         </div>
       </div>

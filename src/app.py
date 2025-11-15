@@ -271,8 +271,8 @@ def login():
         return jsonify({'msg': 'User or password incorrect'}), 400
     # crear token
     access_token = create_access_token(identity=str(user.id))
-
-    return jsonify(access_token=access_token)
+    
+    return jsonify({'token' : access_token, "user": user.id})
 
 
 @app.route("/api/me", methods=["GET"])
