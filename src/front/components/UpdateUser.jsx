@@ -54,8 +54,7 @@ export default function UpdateUser() {
 
                 <Button
                     type='button'
-                    variant="danger"
-                    className="btn btn-warning dropdown-toggle "
+                    className="btn btn-warning dropdown-toggle btn-success"
                     data-bs-toggle="dropdown"
                     aria-expanded="false"
                     data-bs-auto-close="outside"
