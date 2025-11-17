@@ -34,6 +34,7 @@ createRoutesFromElements(
       <Route path="/profile" element={<Profile />} />
       <Route path="*" element={<Login />} />
       <Route path="/user" element={<User />} />
+      <Route path="/mapview" element={<MapView />} />
     </Route>
   ),
     {

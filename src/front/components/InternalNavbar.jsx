@@ -11,44 +11,47 @@ export const InternalNavbar = () => {
           <Link to="/home" className="internalnavbar-brand fw-bold fs-4 meetfit-text">
             MeetFit
           </Link>
+        </div>
 
-          <Link to="/about" className="btn custom2-btn about-btn">
+         <div className="d-flex align-items-center gap-2 ms-3">
+          <Link to="/profile" className="btn custom2-btn about-btn">
             PROFILE
           </Link>
-
-          <Link to="/register" className="btn custom-btn">
+          <Link to="/mapview" className="btn custom2-btn">
+            ACTIVIDADES
+          </Link>
+          <Link to="/eventos" className="btn custom2-btn">
             EVENTOS
           </Link>
-
-          <Link to="/login" className="btn custom-btn">
+          <Link to="/favorites" className="btn custom2-btn">
             FAVORITOS
           </Link>
         </div>
 
-        {/* SEARCH BAR */}
-        <div className="flex-grow-1 d-flex justify-content-center">
-          <input
-            type="text"
-            placeholder="Search..."
-            className="form-control"
-            style={{ maxWidth: "250px" }}
-          />
-        </div>
+          {/* SEARCH BAR */}
+          <div className="flex-grow-1 d-flex justify-content-center">
+            <input
+              type="text"
+              placeholder="Search..."
+              className="form-control"
+              style={{ maxWidth: "250px" }}
+            />
+          </div>
 
-      
-        <div className="d-flex align-items-center gap-2">
-          <Link to="/login" className="btn custom-btn">
-            HOME
-          </Link>
-          <Link to="/login" className="btn custom-btn">
-            ABOUT
-          </Link>
-          <Link to="/login" className="btn custom2-btn">
-            LOG OUT
-          </Link>
-        </div>
 
-      </div>
-    </nav>
+          <div className="d-flex align-items-center gap-2">
+            <Link to="/home" className="btn custom-btn">
+              HOME
+            </Link>
+            <Link to="/about" className="btn custom-btn">
+              ABOUT
+            </Link>
+            <Link to="/logout" className="btn custom2-btn">
+              LOG OUT
+            </Link>
+          </div>
+
+        </div>
+    </nav >
   );
 };
