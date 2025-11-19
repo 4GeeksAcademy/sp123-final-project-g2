@@ -143,8 +143,8 @@ export const initialStore = () => {
 // Reducer que maneja todas las acciones
 export default function storeReducer(store, action = {}) {
   switch (action.type) {
-    case "set_hello":
-      return { ...store, message: action.payload };
+    case "SET_USER_INFO":
+      return { ...store, profile: action.payload };
 
     case "ADD_USER_TASK":
       const newUserTask = {

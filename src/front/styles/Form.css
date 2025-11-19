@@ -11,6 +11,22 @@
   justify-content: center;
 }
 
+.Form-login {
+  width: 100%;
+  max-width: 600px;
+  min-height: 60vh;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 60px 40px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.50);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+
 .button {
   background-color: #6366f1;
   color: white;

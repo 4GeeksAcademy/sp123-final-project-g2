@@ -1,43 +1,43 @@
 from flask import request, jsonify, Blueprint
-import secrets
 from datetime import datetime, timedelta, timezone
-import jwt
-from werkzeug.security import check_password_hash
-from api.models import db, Perfil, Grupo, User, Clan
-from werkzeug.security import generate_password_hash
+from api.models import db, User
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
+import jwt
 
 api_user = Blueprint('apiUser', __name__)
 
 # Allow CORS requests to this API
 CORS(api_user)
+SECRET_KEY = "super-secret-key"
 
-@api_user.route('/<int:user_id>/perfil', methods=['POST'])
-def crear_perfil(user_id):
-    varUser = User.query.get(user_id)
-    if varUser is None:
-        return jsonify({"msg": f"Usuario con ID {user_id} no existe"}), 404
-    perfil_existente = Perfil.query.filter_by(user_id=user_id).first()
-    if perfil_existente is not None:
-        return jsonify({"msg": "Este usuario ya tiene un perfil creado"}), 400
+
+@api_user.route('/register', methods=['POST'])
+def crear_perfil():
     body = request.get_json()
-    if body is None:
-        return jsonify({"msg": "No enviaste un body"}), 400
-    if "nombre" not in body or not body["nombre"].strip():
-        return jsonify({"msg": "El campo 'nombre' es obligatorio"}), 400
-    
-    nuevo_perfil = Perfil(
-        nombre = body.get("nombre"),
-        foto = body.get("foto"),
-        presentacion = body.get("presentacion"),
-        telefono = body.get("telefono"),
-        edad = body.get("edad"),
-        ciudad = body.get("ciudad"),
-        genero = body.get("genero"),
-        twitter = body.get("twitter"),
-        facebook = body.get("facebook"),
-        instagram = body.get("instagram"),
-        user_id = user_id
+    email = body.get('email')
+    password = body.get('password')
+    if not email or not password:
+        return jsonify({"msg": "Falta correo o contraseña"}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({"msg": "El usuario ya existe"}), 400
+    hashed_password = generate_password_hash(password)
+
+    print(body)
+
+    nuevo_perfil = User(
+        email=email,
+        password=hashed_password,
+        name=body.get("name"),
+        photo=body.get("photo"),
+        bio=body.get("bio"),
+        phone=body.get("phone"),
+        age=body.get("age"),
+        city=body.get("city"),
+        gender=body.get("gender"),
+        twitter=body.get("twitter"),
+        facebook=body.get("facebook"),
+        instagram=body.get("instagram"),
     )
 
     db.session.add(nuevo_perfil)
@@ -47,23 +47,42 @@ def crear_perfil(user_id):
         "msg": "Perfil creado correctamente", "perfil": nuevo_perfil.serialize()
     }), 201
 
+
+@api_user.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    if not email or not password:
+        return jsonify({"msg": "Falta correo o contraseña"}), 400
+    user = User.query.filter_by(email=email).first()
+    if not user or not check_password_hash(user.password, password):
+        return jsonify({"msg": "Usuario o contraseña incorrectos"}), 401
+    token = jwt.encode({
+        'user_id': user.id,
+        'exp': datetime.now(timezone.utc) + timedelta(minutes=15)
+    }, SECRET_KEY, algorithm="HS256")
+    return jsonify({"token": token, "user": user.serialize()})
+
+
 @api_user.route('/<int:user_id>/perfil', methods=['GET'])
 def get_perfil(user_id):
-    varPerfil = Perfil.query.filter_by(user_id=user_id).first()
+    varPerfil = User.query.filter_by(user_id=user_id).first()
     if varPerfil is None:
         return jsonify({"msg": f"El usuario con el ID {user_id} no existe"}), 404
-    
+
     response_body = {
         "Perfil": varPerfil.serialize()
     }
     return jsonify(response_body), 200
+
 
 @api_user.route('/<int:user_id>/perfil', methods=['PUT'])
 def editar_perfil(user_id):
     varUser = User.query.get(user_id)
     if varUser is None:
         return jsonify({'msg': f'El usuario con ID {user_id} no existe'}), 404
-    varPerfil = Perfil.query.filter_by(user_id=user_id).first()
+    varPerfil = User.query.filter_by(user_id=user_id).first()
     if varPerfil is None:
         return jsonify({'msg': f'El usuario con ID {user_id} no tiene perfil creado'}), 404
     body = request.get_json(silent=True)
@@ -98,6 +117,7 @@ def editar_perfil(user_id):
     return jsonify({
         'msg': 'Perfil actualizado correctamente', 'perfil': varPerfil.serialize()
     }), 200
+
 
 @api_user.route('/Saluda', methods=['POST', 'GET'])
 def handle_hello():

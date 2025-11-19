@@ -5,15 +5,15 @@ import Form from "../components/Form.jsx";
 const Register = () => {
   const navigate = useNavigate();
 
-  const handleSignup = async ({ email, password, setErrorMsn }) => {
+  const handleSignup = async ({ email, password, name, setErrorMsn }) => {
     setErrorMsn(null);
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
     try {
-      const response = await fetch(`${backendUrl}/api/register`, {
+      const response = await fetch(`${backendUrl}/api/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, name }),
       });
 
       const data = await response.json();

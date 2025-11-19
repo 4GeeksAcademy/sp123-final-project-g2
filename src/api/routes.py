@@ -4,8 +4,6 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from werkzeug.security import check_password_hash
 from api.models import db, User
-from werkzeug.security import generate_password_hash
-
 
 
 def token_requerido(f):
@@ -27,6 +25,7 @@ SECRET_KEY = "super-secret-key"
 
 api = Blueprint('api', __name__)
 reset_tokens = {}
+
 
 @api.route('/user', methods=['GET'])
 @token_requerido
@@ -61,7 +60,7 @@ def update_user():
             return jsonify({"msg": "El email ya está en uso"}), 400
         user.email = new_email
     if new_password:
-        from werkzeug.security import generate_password_hash
+
         user.password = generate_password_hash(new_password)
 
     db.session.commit()
@@ -99,39 +98,6 @@ def reset_password():
     db.session.commit()
     reset_tokens.pop(email)
     return jsonify({"msg": "Cambio de contraseña"}), 200
-
-
-@api.route('/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
-    if not email or not password:
-        return jsonify({"msg": "Falta correo o contraseña"}), 400
-    user = User.query.filter_by(email=email).first()
-    if not user or not check_password_hash(user.password, password):
-        return jsonify({"msg": "Usuario o contraseña incorrectos"}), 401
-    token = jwt.encode({
-        'user_id': user.id,
-        'exp': datetime.now(timezone.utc) + timedelta(minutes=15)
-    }, SECRET_KEY, algorithm="HS256")
-    return jsonify({"token": token})
-
-
-@api.route('/register', methods=['POST'])
-def register():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
-    if not email or not password:
-        return jsonify({"msg": "Falta correo o contraseña"}), 400
-    if User.query.filter_by(email=email).first():
-        return jsonify({"msg": "El usuario ya existe"}), 400
-    hashed_password = generate_password_hash(password)
-    new_user = User(email=email, password=hashed_password, is_active=True)
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({"msg": "Usuario registrado exitosamente"}), 201
 
 
 @api.route('/hello', methods=['POST', 'GET'])

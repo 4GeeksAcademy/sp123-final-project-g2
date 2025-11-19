@@ -156,7 +156,7 @@ export const Dashboard = () => {
 
             {/* --- NUEVO MODAL PARA AÑADIR TAREAS --- */}
             {
-                (showTaskModal && taskType === "user") && <ModalCreateTask setShowTaskModal={setShowTaskModal}/>
+                (showTaskModal && taskType === "user") && <ModalCreateTask setShowTaskModal={setShowTaskModal} />
             }
             {showTaskModal && taskType !== "user" && (
                 <div className="modal" tabIndex="-1" style={{ display: "block" }}>
@@ -223,9 +223,14 @@ export const Dashboard = () => {
                 <div className="dashboard-content-area page-container">
                     <div className="welcome-section">
                         <h2>Bienvenido de nuevo '{store.profile.name}'</h2>
-                        <button className="btn btn-invite-user" onClick={() => setShowInviteModal(true)}>
-                            <i className="fas fa-user-plus me-2"></i>Invitar
-                        </button>
+                        <Link to="/login">
+                            <button className="btn btn-invite-user" onClick={() => setShowInviteModal(true)}>
+                                <i className="fas fa-user-plus me-2"></i>
+                                Login
+                            </button>
+                        </Link>
+
+
                     </div>
 
                     <div className="row g-4 dashboard-cards">
