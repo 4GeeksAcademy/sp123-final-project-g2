@@ -336,8 +336,15 @@ def update_activity(id):
         return jsonify({"error": "Actividad no encontrada"}), 404
     if activity.created_by != user_id:
         return jsonify({"error": "No autorizado"}), 403
-
+    
     data = request.get_json()
+    
+    VALID_SPORTS = ["Running", "Ciclismo", "Fútbol", "Baloncesto", "Yoga", "Natación", "Crossfit"]
+
+    if data["sport"] not in VALID_SPORTS:
+        return jsonify({"error": "Deporte inválido"}), 400
+
+
     for key in ["title", "sport", "description", "date", "time", "max_participants"]:
         if key in data:
             setattr(activity, key, data[key])

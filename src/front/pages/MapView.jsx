@@ -50,18 +50,26 @@ export const MapView = () => {
 
       >
         {activities
-        
-        .filter(a => a.latitude && a.longitude) 
-        .map((a) => (
-          <Marker
-            key={a.id}
-            position={{ lat: a.latitude, lng: a.longitude }}
-            onClick={() => setSelected(a)}
-          />
-        ))}
+
+          .filter(a => a.latitude && a.longitude)
+          .map((a) => (
+            <Marker
+              key={a.id}
+              position={{ lat: a.latitude, lng: a.longitude }}
+              onClick={(e) => {
+                e.domEvent.preventDefault()
+                e.domEvent.stopPropagation()
+                setSelected(a)
+              }}
+            />
+          ))}
         {newMarker && (
           <Marker
             position={{ lat: newMarker.latitude, lng: newMarker.longitude }}
+            onClick={(e) => {
+              e.domEvent.preventDefault()
+              e.domEvent.stopPropagation()
+            }}
           />
         )}
 
