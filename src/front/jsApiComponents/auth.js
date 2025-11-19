@@ -36,3 +36,14 @@ export const register = async (body) => {
     return {data, status: response.status}
   }
 
+export const updateUser = async (body, user) =>{
+  const token = localStorage.getItem("JWT-STORAGE-KEY")
+  const response = await fetch(`${BASE_URL}api/user/${user}`, {
+    method: 'PUT',
+    headers: { "Content-Type": "application/json" ,
+    'Authorization': `Bearer ${token}`},
+    body: JSON.stringify(body)
+  })
+  const data = await response.json()
+  return {data, status: response.status}
+}

@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button, Container, Row, Col, Spinner } from "react-bootstrap";
 import { user } from "../jsApiComponents/user";
-import UseLogOut from "../jsApiComponents/logout";
 import { deleteUser } from "../jsApiComponents/deleteUser";
+import UpdateUser from "../components/UpdateUser";
+
 export const Profile = () => {
   const [user_get, setUser_get] = useState(null);
   const [user_offlineMsg, setUser_offlineMsg] = useState("")
@@ -11,30 +12,30 @@ export const Profile = () => {
 
 
   const runLogOut = () => {
-    const logOut = UseLogOut()
+    localStorage.removeItem("JWT-STORAGE-KEY");
     alert('Sesion cerrada correctamente!')
     return navigate('/login')
   }
-  const runDeleteUser = () =>{
-    const deleteCurrentUser = deleteUser()
+  const runDeleteUser = () => {
+    deleteUser()
     alert('Tu usuario ha sido eliminado correctamente!')
     return navigate('/register')
   }
-  
-const getUser = async () => {
-  try {
-    const response = await user()
-    if (response.ok){
-      setUser_get(response.data)
-      console.log(user_get)
-    } else if (response.status == 401) {
-      alert('Tu sesion ha caducado!')
-      return navigate('/login')
-    }
 
-  } catch (error) {
-    console.log("Error fetching user:", error)
-  }
+  const getUser = async () => {
+    try {
+      const response = await user()
+      if (response.ok) {
+        setUser_get(response.data)
+        console.log(user_get)
+      } else if (response.status == 401) {
+        alert('Tu sesion ha caducado!')
+        return navigate('/login')
+      }
+
+    } catch (error) {
+      console.log("Error fetching user:", error)
+    }
   }
 
 
@@ -43,20 +44,20 @@ const getUser = async () => {
 
   }, [])
 
-  const userOfflineProcedure = () =>{
-    setInterval(()=>{
+  const userOfflineProcedure = () => {
+    setInterval(() => {
       setUser_offlineMsg("Parece que tu sesion ha caducado, vuelve a iniciar sesion.")
     }, 5000)
   }
-  if (user_get == null)
+  if (user_get == null) {
     userOfflineProcedure()
     return (
-      <div className="d-flex justify-content-center align-items-center vh-100 flex-column gap-4">
+      <div className="d-flex justify-content-center align-items-center vh-100 flex-column gap-">
         <Spinner animation="border" variant="dark" />
         <p>{user_offlineMsg}</p>
       </div>
     );
-
+  }
   return (
     <Container
       fluid
@@ -72,6 +73,7 @@ const getUser = async () => {
           />
         </div>
         <h4>{user_get.name}</h4>
+        <h4>{user_get.lastName || "Sin apellidos."}</h4>
         <p className="text-light opacity-75 mb-1">{user_get.email}</p>
         <p className="text-light small">{user_get.biography || "No biography yet"}</p>
 
@@ -81,30 +83,23 @@ const getUser = async () => {
           <p><strong>Nivel:</strong> {user_get.level || "Not specified"}</p>
         </div>
 
-        <Button
-          variant="success"
-          className="mt-3"
-          onClick={() => navigate("/edit-profile")}
-        >
-          Editar Perfil
-        </Button>
+
+        <UpdateUser />
+
+
         <Button
           variant="warning"
           className="mt-3"
-          onClick={() => {
-            return runLogOut
-          }}
+          onClick={runLogOut}
         >
           Cerrar sesion
         </Button>
         <Button
           variant="danger"
           className="mt-3"
-          onClick={() => {
-            return runDeleteUser
-          }}
+          onClick={runDeleteUser}
         >
-          Eliminar Usuario 
+          Eliminar Usuario
         </Button>
 
       </Card>

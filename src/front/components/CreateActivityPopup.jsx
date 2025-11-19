@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 
-export const CreateActivityPopup = ({ show, handleClose, onActivityCreated }) => {
+export const CreateActivityPopup = ({ show, handleClose, onActivityCreated, coordinates }) => {
   const [formData, setFormData] = useState({
     name: "",
     sport: "",
     description: "",
     max_participants: "",
     date: "",
-    location: "",
+    
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const BASE_URL = import.meta.env.VITE_BACKEND_URL
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -22,15 +22,31 @@ export const CreateActivityPopup = ({ show, handleClose, onActivityCreated }) =>
     setLoading(true);
     setError("");
 
+
+    if (!coordinates) {
+      setError("Debes seleccionar una ubicación en el mapa");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const token = localStorage.getItem("token");
-      const resp = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/activities`, {
+      const token = localStorage.getItem("JWT-STORAGE-KEY");
+
+
+      const bodyWithCoords = {
+        ...formData,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+      };
+
+
+      const resp = await fetch(`${BASE_URL}api/activities`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(bodyWithCoords),
       });
 
       if (!resp.ok) {
@@ -112,15 +128,14 @@ export const CreateActivityPopup = ({ show, handleClose, onActivityCreated }) =>
 
           <Form.Group className="mb-3">
             <Form.Label>Ubicación</Form.Label>
-            <Form.Control
-              type="text"
-              name="location"
-              placeholder="Ej: Parque del Retiro, Madrid"
-              value={formData.location}
-              onChange={handleChange}
-              required
-            />
+            <div className="p-2 bg-secondary rounded">
+              {coordinates
+                ? `Lat: ${coordinates.latitude.toFixed(5)}, Lng: ${coordinates.longitude.toFixed(5)}`
+                : "Haz clic en el mapa para marcar la ubicación"}
+            </div>
+
           </Form.Group>
+          
 
           {error && <p className="text-danger">{error}</p>}
           <div className="d-flex justify-content-end">

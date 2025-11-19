@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker, InfoWindow, useJsApiLoader, } from "@react-google-maps/api";
 import { Spinner, Container, Button } from "react-bootstrap";
 import { CreateActivityPopup } from "../components/CreateActivityPopup";
 
@@ -9,6 +9,7 @@ export const MapView = () => {
   const [activities, setActivities] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [newMarker, setNewMarker] = useState(null);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -32,19 +33,37 @@ export const MapView = () => {
     );
 
   return (
+
+
     <div className="position-relative" style={{ height: "100vh", width: "100%" }}>
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%" }}
         center={{ lat: 40.4168, lng: -3.7038 }}
         zoom={12}
+        onClick={(e) => {
+          setNewMarker({
+            latitude: e.latLng.lat(),
+            longitude: e.latLng.lng()
+          });
+          setShowPopup(true);
+        }}
+
       >
-        {activities.map((a) => (
+        {activities
+        
+        .filter(a => a.latitude && a.longitude) 
+        .map((a) => (
           <Marker
             key={a.id}
             position={{ lat: a.latitude, lng: a.longitude }}
             onClick={() => setSelected(a)}
           />
         ))}
+        {newMarker && (
+          <Marker
+            position={{ lat: newMarker.latitude, lng: newMarker.longitude }}
+          />
+        )}
 
         {selected && (
           <InfoWindow
@@ -75,10 +94,12 @@ export const MapView = () => {
       <CreateActivityPopup
         show={showPopup}
         handleClose={() => setShowPopup(false)}
+        coordinates={newMarker}
         onActivityCreated={(newActivity) =>
           setActivities((prev) => [...prev, newActivity])
         }
       />
     </div>
+
   );
 };
