@@ -35,33 +35,33 @@ export default function UpdateUser() {
 
 
     const recoverBio = (e) => {
-        setInfo({...info, bio: e.target.value})
+        setInfo({ ...info, bio: e.target.value })
     }
     const recoverLevel = (e) => {
-        setInfo({...info, level: e.target.value})
+        setInfo({ ...info, level: e.target.value })
     }
     const recoverSport = (e) => {
-        setInfo({...info, sports: e.target.value})
+        setInfo({ ...info, sports: e.target.value })
     }
     const recoverName = (e) => {
-        setInfo({...info, name: e.target.value})
+        setInfo({ ...info, name: e.target.value })
     }
     const recoverLastname = (e) => {
-        setInfo({...info, lastName: e.target.value})
+        setInfo({ ...info, lastName: e.target.value })
     }
     return (
         <>
 
-                <Button
-                    type='button'
-                    className="btn btn-warning dropdown-toggle btn-success"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                    data-bs-auto-close="outside"
-                >
-                    Editar Perfil
-                </Button>
-            <div className="dropdown" style={{minWidth: "300px"}}>
+            <Button
+                type='button'
+                className="btn btn-warning dropdown-toggle btn-success"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                data-bs-auto-close="outside"
+            >
+                Editar Perfil
+            </Button>
+            <div className="dropdown" style={{ minWidth: "300px" }}>
                 <form className="dropdown-menu p-4 m-2 form-register" onSubmit={updateSuccess}>
                     <div className="mb-3 ">
                         <label htmlFor="bio" className='form-label'><h4>Bio</h4></label>

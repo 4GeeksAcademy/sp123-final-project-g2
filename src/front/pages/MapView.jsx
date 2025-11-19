@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader, } from "@react-google-maps/api";
 import { Spinner, Container, Button } from "react-bootstrap";
 import { CreateActivityPopup } from "../components/CreateActivityPopup";
@@ -10,6 +10,16 @@ export const MapView = () => {
   const [selected, setSelected] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [newMarker, setNewMarker] = useState(null);
+
+  const handleMarkerClick = (e) => {
+    setShowPopup(true);
+    setNewMarker({
+      latitude: e.latLng.lat(),
+      longitude: e.latLng.lng()
+    });
+
+  };
+
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -25,6 +35,21 @@ export const MapView = () => {
     fetchActivities();
   }, []);
 
+  useEffect(() => {
+  if (!selected) return;
+
+  const timer = setTimeout(() => {
+    const allInfoWindows = document.querySelectorAll('.gm-style-iw-c');
+    allInfoWindows.forEach(win => {
+      const textContent = win.innerText?.trim();
+      const hasContent = textContent && textContent.length > 5;
+      if (!hasContent) win.parentElement.style.display = "none";
+    });
+  }, 80);
+
+  return () => clearTimeout(timer);
+}, [selected]);
+
   if (!isLoaded)
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
@@ -37,16 +62,11 @@ export const MapView = () => {
 
     <div className="position-relative" style={{ height: "100vh", width: "100%" }}>
       <GoogleMap
+
         mapContainerStyle={{ width: "100%", height: "100%" }}
         center={{ lat: 40.4168, lng: -3.7038 }}
         zoom={12}
-        onClick={(e) => {
-          setNewMarker({
-            latitude: e.latLng.lat(),
-            longitude: e.latLng.lng()
-          });
-          setShowPopup(true);
-        }}
+        onClick={handleMarkerClick}
 
       >
         {activities
@@ -75,6 +95,8 @@ export const MapView = () => {
 
         {selected && (
           <InfoWindow
+            key={selected.name}
+            options={{ zIndex: 10, }}
             position={{ lat: selected.latitude, lng: selected.longitude }}
             onCloseClick={() => setSelected(null)}
           >

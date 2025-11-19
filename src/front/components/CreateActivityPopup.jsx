@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
-import {sports} from "../jsApiComponents/sports"
+import { sports } from "../jsApiComponents/sports"
 
 export const CreateActivityPopup = ({ show, handleClose, onActivityCreated, coordinates }) => {
 
@@ -95,7 +95,7 @@ export const CreateActivityPopup = ({ show, handleClose, onActivityCreated, coor
               onChange={handleChange}
               required
             >
-            {sports.map((s) => (<option key={s} value={s}>{s}</option>))}
+              {sports.map((s) => (<option key={s} value={s}>{s}</option>))}
             </Form.Select>
           </Form.Group>
 
