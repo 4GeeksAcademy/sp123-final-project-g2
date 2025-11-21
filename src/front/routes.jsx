@@ -27,6 +27,7 @@ export const router = createBrowserRouter(
 
   createRoutesFromElements(
     <Route path="/" element={<Layout />} errorElement={<h1>Not found!</h1>}>
+      <Route index element={<Home />} /> 
       <Route path="/home" element={<Home />} />
       <Route path="/about" element={<About />} />
       <Route path="/single/:theId" element={<Single />} />
@@ -38,7 +39,7 @@ export const router = createBrowserRouter(
       <Route path="/reset/:token" element={<Reset />} />
       <Route path="/map" element={<MapView />} />
       <Route path="/profile" element={<Profile />} />
-      <Route path="*" element={<Login />} />
+      <Route path="*" element={<Home />} />  
       <Route path="/user" element={<User />} />
 
       <Route path="/mapview" element={<MapView />} />
