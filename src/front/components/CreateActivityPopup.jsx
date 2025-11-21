@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import { sports } from "../jsApiComponents/sports"
 
-export const CreateActivityPopup = ({ show, handleClose, onActivityCreated, coordinates }) => {
+export const CreateActivityPopup = ({ show, handleClose, onActivityCreated, coordinates, loadActivity }) => {
 
 
 

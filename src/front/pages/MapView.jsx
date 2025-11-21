@@ -4,13 +4,15 @@ import React, { useEffect, useState, useCallback } from "react";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader, } from "@react-google-maps/api";
 import { Spinner, Container, Button } from "react-bootstrap";
 import { CreateActivityPopup } from "../components/CreateActivityPopup";
+import ListOfActivities from "../components/ListOfActivities";
 
 export const MapView = () => {
   const [activities, setActivities] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
-  const [newMarker, setNewMarker] = useState(null);
-
+  const [newMarker, setNewMarker] = useState(null); 
+  const [currentPosition, setCurrentPosition] = useState({ lat: 40.4168, lng: -3.7038 })
+  const [filterSport, setFilterSport] = useState("all")
   const handleMarkerClick = (e) => {
     setShowPopup(true);
     setNewMarker({
@@ -20,7 +22,7 @@ export const MapView = () => {
 
   };
 
-
+  console.log(activities)
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
   });
@@ -61,14 +63,17 @@ export const MapView = () => {
 
 
     <div className="position-relative" style={{ height: "100vh", width: "100%" }}>
+      
+
       <GoogleMap
 
-        mapContainerStyle={{ width: "100%", height: "100%" }}
-        center={{ lat: 40.4168, lng: -3.7038 }}
+        mapContainerStyle={{ width: "80%", height: "100%" }}
+        center={currentPosition}
         zoom={12}
         onClick={handleMarkerClick}
 
       >
+        
         {activities
 
           .filter(a => a.latitude && a.longitude)
@@ -80,18 +85,21 @@ export const MapView = () => {
                 e.domEvent.preventDefault()
                 e.domEvent.stopPropagation()
                 setSelected(a)
+                console.log
+                
               }}
             />
           ))}
-        {newMarker && (
+        {/* {newMarker && (
           <Marker
             position={{ lat: newMarker.latitude, lng: newMarker.longitude }}
             onClick={(e) => {
               e.domEvent.preventDefault()
               e.domEvent.stopPropagation()
+              setCurrentPosition({lat: newMarker.latitude, lng: newMarker.longitude})
             }}
           />
-        )}
+        )} */}
 
         {selected && (
           <InfoWindow
@@ -109,6 +117,7 @@ export const MapView = () => {
             </div>
           </InfoWindow>
         )}
+    
       </GoogleMap>
 
       {/* Botón flotante para crear actividad */}
@@ -121,12 +130,19 @@ export const MapView = () => {
         Crear actividad deportiva
       </Button>
 
+      <div className="position-absolute">
+      <ListOfActivities/>
+      </div>
+
+        
       <CreateActivityPopup
         show={showPopup}
         handleClose={() => setShowPopup(false)}
         coordinates={newMarker}
-        onActivityCreated={(newActivity) =>
-          setActivities((prev) => [...prev, newActivity])
+
+        onActivityCreated={ async(newActivity) =>
+          // setActivities((prev) => [...prev, newActivity])
+         await fetchActivities()
         }
       />
     </div>
