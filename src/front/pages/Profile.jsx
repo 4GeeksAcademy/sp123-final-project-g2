@@ -28,10 +28,7 @@ export const Profile = () => {
       if (response.ok) {
         setUser_get(response.data)
         console.log(user_get)
-      } else if (response.status == 401) {
-        alert('Tu sesion ha caducado!')
-        return navigate('/login')
-      }
+      } 
 
     } catch (error) {
       console.log("Error fetching user:", error)
