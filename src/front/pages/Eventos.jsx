@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Card, CardContent, CardMedia, Button, Modal } from "@mui/material";
+import {user} from '../jsApiComponents/user'
+import { useNavigate } from "react-router-dom";
 
 export const Eventos = () => {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showModal, setShowModal] = useState(false);
-
+  const navigate = useNavigate()
   const BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
   const fallbackEvents = [
@@ -25,12 +27,19 @@ export const Eventos = () => {
       const resp = await fetch(`${BASE_URL}/api/activities`);
       if (!resp.ok) throw new Error("Retrieving error");
       const data = await resp.json();
+      console.log(data)
       setEvents(data);
+      console.log(events)
     } catch (err) {
       console.error(err);
       setEvents([]); // fallback
     }
   };
+
+
+
+
+
 
   useEffect(() => {
     fetchEvents();
@@ -39,6 +48,7 @@ export const Eventos = () => {
   }, []);
 
   const showEventDetails = (event) => {
+    console.log(event)
     setSelectedEvent(event);
     setShowModal(true);
   };
@@ -50,7 +60,7 @@ export const Eventos = () => {
 
   const joinEvent = async (event) => {
     if (event.participants.length >= event.max_participants) {
-      alert("To wydarzenie jest już pełne.");
+      alert("Este evento ya está completo.");
       return;
     }
 
@@ -66,15 +76,15 @@ export const Eventos = () => {
 
       if (!resp.ok) {
         const err = await resp.json();
-        throw new Error(err.error || "Nie udało się dołączyć do wydarzenia");
+        throw new Error(err.error || "No pudiste unirte al evento");
       }
 
-      alert(`Dołączyłeś do wydarzenia: ${event.name}`);
+      alert(`Te has unido al evento: ${event.title}`);
       fetchEvents();
     } catch (err) {
       alert(err.message);
     }
-  };
+  }
 
   // lis of events from fallback
   const list = events.length > 0 ? events : fallbackEvents.map(e => ({
@@ -104,24 +114,24 @@ export const Eventos = () => {
                 component="img"
                 height="175"
                 image={event.image}
-                alt={event.name}
+                alt={event.title}
               />
             )}
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, mb: 0.5 }}>
                 <Typography variant="subtitle1" sx={{ color: "#20232D", fontWeight: 700 }}>
-                  {event.name}
+                  {event.title}
                 </Typography>
                 <Button 
                   size="small" 
                   sx={{
                     minWidth: "24px",
-                    bgcolor: event.participants.length >= event.max_participants ? "#888" : "#EE6C4D",
+                    bgcolor: (event.participants?.length ?? 0) >= (event.max_participants ?? 0) ? "#888" : "#EE6C4D",
                     color: "#fff",
                     fontWeight: "bold"
                   }}
                   onClick={() => joinEvent(event)}
-                  disabled={event.participants.length >= event.max_participants}
+                  disabled={(event.participants?.length ?? 0) >= (event.max_participants ?? 0)}
                 >
                   +
                 </Button>
@@ -133,9 +143,9 @@ export const Eventos = () => {
                   🔍
                 </Button>
               </Box>
-              <Typography variant="body2" sx={{ color: "#fff", fontSize: "0.75rem" }}>
+              <Typography variant="body2" sx={{ color: "#000000ff", fontSize: "0.75rem" }}>
                 {event.description} <br />
-                Uczestnicy: {event.participants.length}/{event.max_participants}
+                Participantes: {(event.participants?.length ?? 0)}/{event.max_participants ?? 0}
               </Typography>
             </CardContent>
           </Card>
@@ -146,7 +156,7 @@ export const Eventos = () => {
         <Box sx={{ bgcolor: "#333", color: "#fff", p: 4, mx: "auto", mt: "10%", borderRadius: 2, maxWidth: 400 }}>
           {selectedEvent && (
             <>
-              <Typography variant="h6">{selectedEvent.name}</Typography>
+              <Typography variant="h6">{selectedEvent.title}</Typography>
               <Typography variant="subtitle2">{selectedEvent.sport}</Typography>
               <Typography variant="body2" sx={{ mt: 1 }}>{selectedEvent.description}</Typography>
             </>

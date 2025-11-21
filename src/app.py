@@ -245,7 +245,6 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    # access_token = create_access_token(identity=str(user.id))
     return jsonify({'msg': 'User Registered successfully'})
 
 
@@ -282,7 +281,7 @@ def login():
 @jwt_required()
 def me():
 
-    current_user = get_jwt_identity()
+    current_user = int(get_jwt_identity())
     user = User.query.get(current_user)
     print(user)
     return jsonify(user.serialize()), 200
@@ -306,7 +305,7 @@ def get_activity(id):
 @app.route("/api/activities", methods=["POST"])
 @jwt_required()
 def create_activity():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
 
     required_fields = ["name", "sport","description", "date","latitude", "longitude" ]
@@ -332,7 +331,7 @@ def create_activity():
 @app.route("/api/activities/<int:id>", methods=["PUT"])
 @jwt_required()
 def update_activity(id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({"error": "Actividad no encontrada"}), 404
@@ -358,11 +357,13 @@ def update_activity(id):
 @app.route("/api/activities/<int:id>", methods=["DELETE"])
 @jwt_required()
 def delete_activity(id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     activity = Activity.query.get(id)
     if not activity:
-        return jsonify({"error": "Actividad no encontrada"}), 404
+        
+        return jsonify({"error": "Actividad no encontrada", }), 404
     if activity.created_by != user_id:
+        # print(type(user_id), type(activity.serialize()))
         return jsonify({"error": "No autorizado"}), 403
 
     db.session.delete(activity)
@@ -373,7 +374,7 @@ def delete_activity(id):
 @app.route("/api/activities/<int:id>/join", methods=["POST"])
 @jwt_required()
 def join_activity(id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({"error": "Actividad no encontrada"}), 404
@@ -403,7 +404,7 @@ def get_users():
 @app.route('/api/user/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     try:
         current_user_id = int(current_user_id)
     except (TypeError, ValueError):
@@ -419,7 +420,7 @@ def get_user(user_id):
 @app.route('/api/user/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def edit_user(user_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     try:
         current_user_id = int(current_user_id)
     except (TypeError, ValueError):
@@ -477,7 +478,11 @@ def edit_user(user_id):
             return jsonify({'msg': 'La bio debe tener al menos 2 caracteres'}), 400
         user.biography = bio
         
+    if 'sports' in body:
+        user.sports = str(body['sports'])
     
+    if 'level' in body:
+        user.level = str(body['level'])
 
     db.session.commit()
     return jsonify({'msg': 'Usuario actualizado correctamente', 'user': user.serialize()}), 200
@@ -487,7 +492,7 @@ def edit_user(user_id):
 @app.route('/api/user/<int:user_id>', methods=['DELETE'])
 @jwt_required()
 def delete_user(user_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     try:
         current_user_id = int(current_user_id)
     except (TypeError, ValueError):

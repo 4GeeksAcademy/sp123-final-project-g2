@@ -17,28 +17,31 @@ export const InternalNavbar = () => {
             PERFIL
           </Link>
           <Link to="/mapview" className="btn custom2-btn">
-            ACTIVIDADES
+            CREAR
           </Link>
           <Link to="/eventos" className="btn custom2-btn">
             EVENTOS
           </Link>
-          <Link to="/favorites" className="btn custom2-btn">
-            FAVORITOS
+          <Link to="/myEvents" className="btn custom2-btn">
+            MIS EVENTOS
           </Link>
         </div>
 
           {/* SEARCH BAR */}
-          <div className="flex-grow-1 d-flex justify-content-center search-wrapper">
+          {/* <div className="flex-grow-1 d-flex justify-content-center search-wrapper">
             <input
               type="text"
               placeholder="Buscar..."
+
+
+              
               className="form-control"
               style={{ maxWidth: "250px" }}
             />
-          </div>
+          </div>  */}
 
 
-          <div className="d-flex align-items-center gap-2 me-2 right-menu">
+           {/* <div className="d-flex align-items-center gap-2 me-2 right-menu">
             <Link to="/home" className="btn custom-btn">
               INICIO
             </Link>
@@ -48,7 +51,7 @@ export const InternalNavbar = () => {
             <Link to="/logout" className="btn custom2-btn">
               CERRAR SESIÓN
             </Link>
-          </div>
+          </div>  */}
 
         </div>
     </nav >

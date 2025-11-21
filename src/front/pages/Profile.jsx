@@ -38,22 +38,26 @@ export const Profile = () => {
     }
   }
 
-
   useEffect(() => {
     getUser()
-
   }, [])
+  const refreshUser = () =>{
+    getUser()
+  }
+
 
   const userOfflineProcedure = () => {
     setInterval(() => {
       setUser_offlineMsg("Parece que tu sesion ha caducado, vuelve a iniciar sesion.")
+      alert("Parece que tu sesion ha caducado, vuelve a iniciar sesion.")
+      navigate('login')
     }, 5000)
   }
   if (user_get == null) {
     userOfflineProcedure()
     return (
       <div className="d-flex justify-content-center align-items-center vh-100 flex-column gap-">
-        <Spinner animation="border" variant="dark" />
+        <Spinner animation="border" variant="white" />
         <p>{user_offlineMsg}</p>
       </div>
     );
@@ -73,7 +77,7 @@ export const Profile = () => {
           />
         </div>
         <h4>{user_get.name}</h4>
-        <h4>{user_get.lastName || "Sin apellidos."}</h4>
+        <h4>{user_get.lastname || "Sin apellidos."}</h4>
         <p className="text-light opacity-75 mb-1">{user_get.email}</p>
         <p className="text-light small">{user_get.biography || "No biography yet"}</p>
 
@@ -84,7 +88,7 @@ export const Profile = () => {
         </div>
 
 
-        <UpdateUser />
+        <UpdateUser user_bio = {user_get.biography} user_sports = {user_get.sports} user_level = {user_get.level} user_lastname = {user_get.lastname} refreshUser = {refreshUser} />
 
 
         <Button

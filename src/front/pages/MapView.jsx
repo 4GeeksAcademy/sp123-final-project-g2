@@ -4,13 +4,12 @@ import React, { useEffect, useState, useCallback } from "react";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader, } from "@react-google-maps/api";
 import { Spinner, Container, Button } from "react-bootstrap";
 import { CreateActivityPopup } from "../components/CreateActivityPopup";
-import ListOfActivities from "../components/ListOfActivities";
 
 export const MapView = () => {
   const [activities, setActivities] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
-  const [newMarker, setNewMarker] = useState(null); 
+  const [newMarker, setNewMarker] = useState(null);
   const [currentPosition, setCurrentPosition] = useState({ lat: 40.4168, lng: -3.7038 })
   const [filterSport, setFilterSport] = useState("all")
   const handleMarkerClick = (e) => {
@@ -38,19 +37,19 @@ export const MapView = () => {
   }, []);
 
   useEffect(() => {
-  if (!selected) return;
+    if (!selected) return;
 
-  const timer = setTimeout(() => {
-    const allInfoWindows = document.querySelectorAll('.gm-style-iw-c');
-    allInfoWindows.forEach(win => {
-      const textContent = win.innerText?.trim();
-      const hasContent = textContent && textContent.length > 5;
-      if (!hasContent) win.parentElement.style.display = "none";
-    });
-  }, 80);
+    const timer = setTimeout(() => {
+      const allInfoWindows = document.querySelectorAll('.gm-style-iw-c');
+      allInfoWindows.forEach(win => {
+        const textContent = win.innerText?.trim();
+        const hasContent = textContent && textContent.length > 5;
+        if (!hasContent) win.parentElement.style.display = "none";
+      });
+    }, 80);
 
-  return () => clearTimeout(timer);
-}, [selected]);
+    return () => clearTimeout(timer);
+  }, [selected]);
 
   if (!isLoaded)
     return (
@@ -63,7 +62,7 @@ export const MapView = () => {
 
 
     <div className="position-relative" style={{ height: "100vh", width: "100%" }}>
-      
+
 
       <GoogleMap
 
@@ -73,7 +72,7 @@ export const MapView = () => {
         onClick={handleMarkerClick}
 
       >
-        
+
         {activities
 
           .filter(a => a.latitude && a.longitude)
@@ -86,20 +85,20 @@ export const MapView = () => {
                 e.domEvent.stopPropagation()
                 setSelected(a)
                 console.log
-                
+
               }}
             />
           ))}
-        {/* {newMarker && (
+        {newMarker && (
           <Marker
             position={{ lat: newMarker.latitude, lng: newMarker.longitude }}
             onClick={(e) => {
               e.domEvent.preventDefault()
               e.domEvent.stopPropagation()
-              setCurrentPosition({lat: newMarker.latitude, lng: newMarker.longitude})
+              setCurrentPosition({ lat: newMarker.latitude, lng: newMarker.longitude })
             }}
           />
-        )} */}
+        )}
 
         {selected && (
           <InfoWindow
@@ -113,11 +112,14 @@ export const MapView = () => {
               <p>{selected.sport}</p>
               <small>{new Date(selected.date).toLocaleString()}</small>
               <p className="text-muted">{selected.location}</p>
+              <p><strong>Titulo:</strong> {selected.title}</p>
               <p><strong>Creado por:</strong> {selected.creator_name}</p>
+              <p><strong>descripcion:</strong> {selected.description}</p>
+              <p><strong>Participantes:</strong> {selected.participants}</p>
             </div>
           </InfoWindow>
         )}
-    
+
       </GoogleMap>
 
       {/* Botón flotante para crear actividad */}
@@ -130,7 +132,18 @@ export const MapView = () => {
         Crear actividad deportiva
       </Button>
 
-      
+      {showPopup && (
+        <CreateActivityPopup
+          show={showPopup}
+          handleClose={() => setShowPopup(false)}
+          coordinates={newMarker}
+          onActivityCreated={() => {
+            fetchActivities(); 
+            setShowPopup(false)
+          }}
+        />
+      )}
+
     </div>
 
   );
