@@ -6,33 +6,25 @@
 }
 
 .meetfit-text {
-  color: #817DF9 !important;
+  font-weight: 1000;
+  font-size: 1.1rem; 
+  color: #001F54; 
+  letter-spacing: 2px;
+  padding: 6px 20px; 
+  border: 1px solid #001F54; 
+  border-radius: 4px; 
   text-decoration: none;
-  font-weight: 800;
-  font-size: 2.9rem;
-  padding: 0.4rem 1rem;
-  background-color: transparent;
   transition: all 0.3s ease;
-  letter-spacing: 1px;
-}
-
-
-.meetfit-text {
-  font-weight: 700;
-  font-size: 2.5rem;
-  color: #817DF9; 
-  letter-spacing: 1px;
-  transition: color 0.3s ease, transform 0.3s ease;
   cursor: pointer;
 }
-
 
 .meetfit-text:hover {
   color: #5E50F9; 
   transform: scale(1.05); 
+  border: 1px solid #E3FE18; 
   text-shadow:
     2px 2px 6px rgba(229, 228, 244, 0.7), 
-    0 0 10px rgba(220, 248, 167, 0.4);    
+    0 0 10px rgba(220, 248, 167, 0.4); 
 }
 
 .custom2-btn {

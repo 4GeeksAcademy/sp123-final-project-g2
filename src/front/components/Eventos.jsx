@@ -125,26 +125,58 @@ export const Eventos = () => {
           sx={{
             width: "60%",
             maxWidth: 450,
+            
             bgcolor: "#fff",
             borderRadius: 2,
           }}
         />
         <Box sx={{ mt: 2, textAlign: "center" }}>
-          <FormControl sx={{ width: "60%", maxWidth: 450, bgcolor: "#fff", borderRadius: 2}}>
-            <InputLabel>Filtrar por deporte</InputLabel>
-            <Select
-              value={sportFilter}
-              label="Filtrar por deporte"
-              onChange={(e) => setSportFilter(e.target.value)}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              {sports.map((sport) => (
-                <MenuItem key={sport} value={sport}>
-                  {sport}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <FormControl
+  sx={{
+    width: "60%",
+    maxWidth: 450,
+  }}
+>
+  <Select
+    displayEmpty
+    value={sportFilter}
+    onChange={(e) => setSportFilter(e.target.value)}
+    sx={{
+      bgcolor: "#fff",
+      borderRadius: 2,
+      height: "56px",        
+      paddingLeft: "4px",
+      "& fieldset": {
+        borderColor: "#C4C4C4",
+      },
+      "&:hover fieldset": {
+        borderColor: "#817DF9",
+      },
+      "&.Mui-focused fieldset": {
+        borderColor: "#817DF9",
+        borderWidth: "2px",
+      },
+      "& .MuiSelect-select": {
+        display: "flex",
+        alignItems: "center",
+        color: sportFilter ? "#000" : "#666", 
+      }
+    }}
+  >
+
+    <MenuItem value="" disabled>
+      <span style={{ color: "#888" }}>Filtrar por deporte</span>
+    </MenuItem>
+
+    
+    {sports.map((sport) => (
+      <MenuItem key={sport} value={sport}>
+        {sport}
+      </MenuItem>
+    ))}
+  </Select>
+</FormControl>
+
         </Box>
 
       </Box>
@@ -193,10 +225,12 @@ export const Eventos = () => {
                 <Button
                   size="small"
                   sx={{ minWidth: "24px", bgcolor: "#817DF9", color: "#fff", fontWeight: "bold" }}
-                  onClick={() => showEventDetails(event)}
+                  onClick={() => navigate(`/events/${event.id}`)}
                 >
                   🔍
                 </Button>
+
+
               </Box>
               <Typography variant="body2" sx={{ color: "#000000ff", fontSize: "0.75rem" }}>
                 <h6>Titulo: {event.title}</h6> <br />
@@ -208,7 +242,7 @@ export const Eventos = () => {
         ))}
       </Box>
 
-      <Modal open={showModal} onClose={handleCloseModal}>
+      {/* <Modal open={showModal} onClose={handleCloseModal}>
         <Box sx={{ bgcolor: "#333", color: "#fff", p: 4, mx: "auto", mt: "10%", borderRadius: 2, maxWidth: 400 }}>
           {selectedEvent && (
             <>
@@ -218,7 +252,7 @@ export const Eventos = () => {
             </>
           )}
         </Box>
-      </Modal>
+      </Modal>*/}
     </>
   );
 };
