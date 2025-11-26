@@ -1,38 +1,42 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
-from datetime import datetime, timedelta
-import os
-
-from flask import Flask, request, jsonify, url_for, send_from_directory
-from flask_migrate import Migrate
-from flask_swagger import swagger
-from flask_jwt_extended import jwt_required, get_jwt_identity
-
-from flask_cors import CORS
-
-from api.utils import APIException, generate_sitemap
-from api.models import db, User, Activity, Message, PasswordResetToken
-from api.routes import api
-from api.admin import setup_admin
-from api.commands import setup_commands
-
-from flask_jwt_extended import create_access_token
-from flask_jwt_extended import get_jwt_identity
-from flask_jwt_extended import jwt_required
-from flask_jwt_extended import JWTManager
-
-from flask_bcrypt import Bcrypt
-
-from flask_mail import Mail, Message
-
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
-import os
-from dotenv import load_dotenv
 import jwt
+from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_sqlalchemy import SQLAlchemy
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from flask_mail import Mail, Message
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager
+from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import create_access_token
+from api.commands import setup_commands
+from api.admin import setup_admin
+from api.routes import api
+from api.models import db, User, Activity, Message, PasswordResetToken
+from api.utils import APIException, generate_sitemap
+from flask_cors import CORS
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_swagger import swagger
+from flask_migrate import Migrate
+from flask import Flask, request, jsonify, url_for, send_from_directory
+from datetime import datetime, timedelta
+import re
+import os
+
+file_path = os.path.join(os.path.dirname(
+    __file__), "newsletter", "newsletter.txt")
+
+
+# files for newsletter if not exist
+if not os.path.exists(os.path.dirname(file_path)):
+    os.makedirs(os.path.dirname(file_path))
+
+if not os.path.exists(file_path):
+    open(file_path, "a").close()
+
 
 load_dotenv()
 
@@ -65,7 +69,7 @@ jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 
 
-#Configuración Flask-Mail ----------------------------------------
+# Configuración Flask-Mail ----------------------------------------
 app.config["MAIL_SERVER"] = "smtp.gmail.com"
 app.config["MAIL_PORT"] = 587
 app.config["MAIL_USE_TLS"] = True
@@ -77,15 +81,16 @@ app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
 mail = Mail(app)
 
 
-#Helper para generar token JWT-----------------------------------------
+# Helper para generar token JWT-----------------------------------------
 def generate_reset_token(user_id: int) -> str:
     serializer = URLSafeTimedSerializer(app.config["JWT_SECRET_KEY"])
     token = serializer.dumps({"user_id": user_id})
-    return token.replace("." , "-")
+    return token.replace(".", "-")
+
 
 def verify_reset_token(token: str, max_age_seconds: int = 900):  # 15 minutos
     serializer = URLSafeTimedSerializer(app.config["JWT_SECRET_KEY"])
-    format_token = token.replace("-" , ".")
+    format_token = token.replace("-", ".")
     try:
         data = serializer.loads(format_token, max_age=max_age_seconds)
         return data.get("user_id")
@@ -93,8 +98,7 @@ def verify_reset_token(token: str, max_age_seconds: int = 900):  # 15 minutos
         return None
     except BadSignature:
         return None
-#Fin del Helper para generar token JWT-----------------------------------------
-
+# Fin del Helper para generar token JWT-----------------------------------------
 
 
 # database condiguration
@@ -134,12 +138,58 @@ def sitemap():
         return generate_sitemap(app)
     return send_from_directory(static_file_dir, 'index.html')
 
+
 @app.route('/api/hello', methods=['GET'])
 def hello():
     return jsonify({
         "message": "Hola desde el backend!",
         "quote": "Sigue entrenando, vas por buen camino"
     }), 200
+
+# Endpoint: newsletter
+
+
+@app.route("/api/newsletter", methods=["POST"])
+def newsletter():
+
+    data = request.get_json() or {}
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"message": "Email es obligatorio"}), 400
+
+    email_regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if not re.match(email_regex, email):
+        return jsonify({"message": "Email inválido"}), 400
+
+    try:
+        with open(file_path, "a") as f:
+            f.write(email + "\n")
+    except Exception as e:
+        return jsonify({"message": "Error al guardar el email", "error": str(e)}), 500
+
+    try:
+        msg = Message(
+            subject="¡Bienvenido a MeetFit!",
+            recipients=[email],
+            body="Gracias por suscribirte al newsletter. ¡Pronto recibirás novedades!",  # Treść tekstowa
+            html="""
+        <html>
+            <body>
+                <h1 style="color: #817DF9;">¡Bienvenido a MeetFit!</h1>
+                <p style="font-size: 18px;">Gracias por suscribirte al newsletter. ¡Pronto recibirás novedades!</p>
+                <p style="font-size: 16px; color: #666;">¡Mantente al tanto de las últimas actividades deportivas y mucho más!</p>
+            </body>
+        </html>
+    """
+        )
+
+        mail.send(msg)
+    except Exception as e:
+        print("Error enviando correo de bienvenida:", e)
+        return jsonify({"message": "Error al enviar el correo de bienvenida", "error": str(e)}), 500
+
+    return jsonify({"message": f"¡Gracias! {email} ha sido añadido al newsletter."}), 200
 
 
 # any other endpoint will try to serve it like a static file
@@ -152,6 +202,22 @@ def serve_any_other_file(path):
     response = send_from_directory(static_file_dir, path)
     response.cache_control.max_age = 0  # avoid cache memory
     return response
+
+
+@app.route("/test-email")
+def test_email():
+    try:
+        msg = Message(
+            subject="Prueba de correo",
+            sender=os.getenv("MAIL_DEFAULT_SENDER"),
+            recipients=[os.getenv("MAIL_USERNAME")],
+            body="Este es un correo de prueba."
+        )
+        mail.send(msg)
+        return {"status": "ok", "message": "Correo enviado correctamente"}
+    except Exception as e:
+        print("ERROR:", e)
+        return {"status": "error", "details": str(e)}, 500
 
 
 # Endpoint: solicitar recuperación -------------------------------
@@ -197,6 +263,8 @@ def forgot_password():
     return jsonify({"message": message}), 200
 
 # Endpoint: restablecer contraseña------------------------------------
+
+
 @app.route("/api/reset/<token>", methods=["POST"])
 def reset_password(token):
     data = request.json
@@ -215,32 +283,34 @@ def reset_password(token):
     user.password = generate_password_hash(new_password)
     db.session.commit()
     return jsonify({"message": "Contraseña restablecida correctamente."}), 200
-#FIN DE FORGOT PASSWORD Y RESET PASSWORD --------------------------------------
+# FIN DE FORGOT PASSWORD Y RESET PASSWORD --------------------------------------
 
-#REPORTAR USUARIO
+# REPORTAR USUARIO
+
+
 @app.route('/api/report_user/<int:user_id>', methods=['POST'])
 @jwt_required()
 def report_user(user_id):
     try:
         current_user_id = get_jwt_identity()
 
-        #evitar auto-reportes
+        # evitar auto-reportes
         if current_user_id == user_id:
             return jsonify({"msg": "No puedes reportarte a ti mismo"}), 400
 
-        #buscar usuario
+        # buscar usuario
         user = User.query.get(user_id)
         if not user:
             return jsonify({"msg": "Usuario no encontrado"}), 404
 
-        #iniciar contador si no existe
+        # iniciar contador si no existe
         if not hasattr(user, "reports") or user.reports is None:
             user.reports = 0
 
-        #incrementa reportes
+        # incrementa reportes
         user.reports += 1
 
-        #contador de reportes = mayor o igual a 3 = usuario bloqueado
+        # contador de reportes = mayor o igual a 3 = usuario bloqueado
         if user.reports >= 3:
             user.is_blocked = True
 
@@ -260,18 +330,18 @@ def report_user(user_id):
         }), 500
 
 
-#BLOQUEAR USUARIO
+# BLOQUEAR USUARIO
 @app.route('/api/block_user/<int:user_id>', methods=['POST'])
 @jwt_required()
 def block_user(user_id):
     try:
         current_user_id = get_jwt_identity()
 
-        #paso básico a seguir
+        # paso básico a seguir
         if current_user_id == user_id:
             return jsonify({"msg": "No puedes bloquearte a ti mismo"}), 400
 
-        #buscar usuario a bloquear
+        # buscar usuario a bloquear
         user = User.query.get(user_id)
         if not user:
             return jsonify({"msg": "Usuario no encontrado"}), 404
@@ -316,7 +386,6 @@ def register():
     if 'genero' not in body:
         return jsonify({'msg': 'El campo Genero es obligatorio'}), 400
 
-  
     email = body.get("email")
     password = body.get("password")
     nombre = body.get("nombre")
@@ -363,8 +432,8 @@ def login():
         return jsonify({'msg': 'User or password incorrect'}), 400
     # crear token
     access_token = create_access_token(identity=str(user.id))
-    
-    return jsonify({'token' : access_token, "user": user.id})
+
+    return jsonify({'token': access_token, "user": user.id})
 
 
 @app.route("/api/me", methods=["GET"])
@@ -398,7 +467,8 @@ def create_activity():
     user_id = int(get_jwt_identity())
     data = request.get_json()
 
-    required_fields = ["name", "sport","description", "date","latitude", "longitude" ]
+    required_fields = ["name", "sport", "description",
+                       "date", "latitude", "longitude"]
     if not all(field in data for field in required_fields):
         return jsonify({"error": "Faltan campos obligatorios"}), 400
 
@@ -407,9 +477,9 @@ def create_activity():
         sport=data["sport"],
         description=data.get("description"),
         max_participants=data.get("max_participants", 10),
-        date = datetime.strptime(data["date"], "%Y-%m-%dT%H:%M"),
-        latitude = float(data["latitude"]),
-        longitude = float(data["longitude"]),
+        date=datetime.strptime(data["date"], "%Y-%m-%dT%H:%M"),
+        latitude=float(data["latitude"]),
+        longitude=float(data["longitude"]),
         created_by=user_id,
     )
     db.session.add(activity)
@@ -427,14 +497,14 @@ def update_activity(id):
         return jsonify({"error": "Actividad no encontrada"}), 404
     if activity.created_by != user_id:
         return jsonify({"error": "No autorizado"}), 403
-    
+
     data = request.get_json()
-    
-    VALID_SPORTS = ["Running", "Ciclismo", "Fútbol", "Baloncesto", "Yoga", "Natación", "Crossfit"]
+
+    VALID_SPORTS = ["Running", "Ciclismo", "Fútbol",
+                    "Baloncesto", "Yoga", "Natación", "Crossfit"]
 
     if data["sport"] not in VALID_SPORTS:
         return jsonify({"error": "Deporte inválido"}), 400
-
 
     for key in ["title", "sport", "description", "date", "time", "max_participants"]:
         if key in data:
@@ -450,7 +520,7 @@ def delete_activity(id):
     user_id = int(get_jwt_identity())
     activity = Activity.query.get(id)
     if not activity:
-        
+
         return jsonify({"error": "Actividad no encontrada", }), 404
     if activity.created_by != user_id:
         # print(type(user_id), type(activity.serialize()))
@@ -489,8 +559,10 @@ def get_users():
     users = User.query.all()
     users_serialized = [user.serialize() for user in users]
     return jsonify(users_serialized), 200
-    
+
 # Obtener un usuario por ID (GET)
+
+
 @app.route('/api/user/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
@@ -507,6 +579,8 @@ def get_user(user_id):
     return jsonify(user.serialize()), 200
 
 # Editar usuario (PUT)
+
+
 @app.route('/api/user/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def edit_user(user_id):
@@ -560,17 +634,16 @@ def edit_user(user_id):
         if gender not in ('male', 'female', 'other'):
             return jsonify({'msg': "Género inválido (usa 'male' | 'female' | 'other')"}), 400
         user.gender = gender
-        
-        
+
     if 'bio' in body:
         bio = str(body['bio']).strip()
         if len(bio) < 2:
             return jsonify({'msg': 'La bio debe tener al menos 2 caracteres'}), 400
         user.biography = bio
-        
+
     if 'sports' in body:
         user.sports = str(body['sports'])
-    
+
     if 'level' in body:
         user.level = str(body['level'])
 

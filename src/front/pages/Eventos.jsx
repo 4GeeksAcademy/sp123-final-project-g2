@@ -30,7 +30,7 @@ export const Eventos = () => {
       image:
         "https://www.aytolalaguna.es/actualidad/noticias/.galleries/IMAGENES-Noticias/2025/01/CARRERA-NOCTURNA-2024.jpeg",
       participants: [],
-      max_participants: 10,
+      max_participants: 20,
     },
     {
       id: 3,
@@ -40,8 +40,48 @@ export const Eventos = () => {
       image:
         "https://assets.dmagstatic.com/wp-content/uploads/2019/08/tight10of19-677x451.jpg",
       participants: [],
+      max_participants: 25,
+    },
+     { id: 4, 
+      title: "Spinning Intensivo", 
+      description: "Entrenamiento intenso en bicicleta.", 
+      sport: "Spinning", 
+      image: "https://blogscdn.thehut.net/wp-content/uploads/sites/450/2016/08/09041209/beneficios-spinning-1.jpg",
+      participants: [],
       max_participants: 10,
     },
+    { id: 5, 
+      title: "Meditación Guiada", 
+      description: "Sesión de meditación guiada para relajarte.", 
+      sport: "Meditación", 
+      image: "https://www.elpradopsicologos.es/storage/posts/June2021/group-of-young-sporty-people-sitting-in-padmasana-pose.jpg",
+      participants: [],
+      max_participants: 20,
+    },
+    { id: 6, 
+      title: "Entrenamiento Funcional", 
+      description: "Mejora fuerza y movilidad con ejercicios funcionales.", 
+      sport: "Funcional", 
+      image: "https://akroscenter.com/wp-content/uploads/2023/05/Entrenamiento-funcional-Descubre-sus-beneficios.jpg",
+      participants: [],
+      max_participants: 10,
+     },
+    { id: 7,
+      title: "Caminata Saludable", 
+      description: "Caminata grupal al aire libre para mantenerse activo.", 
+      sport: "Caminata", image: "https://estaticosgn-cdn.deia.eus/clip/604fa017-9146-4961-b436-f7bb5a2ff949_16-9-discover-aspect-ratio_default_0.jpg",
+      participants: [],
+      max_participants: 10,
+     },
+    { id: 8,
+      title: "Natación para Todos", 
+      description: "Sesión de natación para todos los niveles.", 
+      sport: "Natación", 
+      image: "https://noticiasncc.com/wp-content/uploads/2024/01/183-6-CIENCIA_Natacio%CC%81n-nin%CC%83os_.jpg",
+      participants: [],
+      max_participants: 35,
+     },
+  
   ];
 
   // 🟦 Trae eventos del backend
@@ -164,6 +204,7 @@ export const Eventos = () => {
                     variant="body2"
                     sx={{ color: "#000000ff", fontSize: "0.75rem" }}
                   >
+                    <hr></hr>
                     <h6>{event.title}</h6>
                     {event.description}
                     <br />

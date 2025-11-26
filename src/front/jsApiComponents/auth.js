@@ -9,8 +9,9 @@ export const login = async (body) => {
     const data = await response.json();
     console.log(data);
     console.log(data.access_token);
-    localStorage.setItem("JWT-STORAGE-KEY", data.token);
-    localStorage.setItem("USER", data.user);
+    localStorage.setItem("JWT-STORAGE-KEY", data.access_token);
+    localStorage.setItem("USER", JSON.stringify(data.user));
+
     return {data, status: response.status, "ok": response.ok };
   } catch (error) {
     console.log("Error en login.js", error)

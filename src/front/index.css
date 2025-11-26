@@ -216,13 +216,6 @@ body {
 }
 
 
-
-
-
-
-
-
-
 /* Tema de autenticación oscuro */
 .auth-theme {
   --bg: #0f1b2b;
@@ -400,3 +393,67 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,0.5);
 }
+
+.event-scroll-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.event-scroll-container {
+  display: flex !important;
+  flex-direction: row;
+  gap: 15px;
+  overflow-x: auto;
+  padding: 10px;
+  max-width: 100%;
+}
+
+.event-card-scroll {
+  min-width: 230px;
+  max-width: 230px;
+  background: #ffffff;           
+  border-radius: 12px;           
+  padding: 15px;
+  border: 2px solid #EEE;        
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+  
+}
+
+.event-card-scroll h5 {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.actividades-title {
+  color:#d7d5f8;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+.actividades-box {
+  border: 2px solid #E3FE18; 
+  border-radius: 12px;
+  padding: 20px;
+  background-color: #d7d5f8;
+  box-shadow: 0 5px 15px rgba(129, 125, 249, 0.3);
+  margin-top: 180px;
+}
+
+.actividades-title {
+  color: #817DF9;
+  font-weight: bold;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.neon-button {
+  background-color: #2a2d3a;
+  color: #fff;
+  border: 1px solid #1a1930;
+  border-radius: 6px;
+  padding: 12px 24px;
+  font-weight: bold;
+  text-decoration: none;
+  box-shadow: 0 3px 0 #b94e34;
+  transition: 0.3s ease;
+}
+

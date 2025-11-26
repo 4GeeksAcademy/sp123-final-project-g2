@@ -7,24 +7,25 @@ export const Footer = () => {
   const [email, setEmail] = useState("");
 
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/newsletter`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
+  try {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/newsletter`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
 
-      const data = await response.json();
-      alert(data.message);
-      setEmail("");
-    } catch (err) {
-      console.error(err);
-      alert("Ooo o!");
-    }
-  };
+    const data = await response.json();
+    alert(data.message);
+    setEmail("");
+  } catch (err) {
+    console.error(err);
+    alert("Ooo o!");
+  }
+};
+
 
   return (
     <>
