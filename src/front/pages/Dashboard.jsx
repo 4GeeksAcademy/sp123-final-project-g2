@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import useGlobalReducer from "../hooks/useGlobalReducer";
 import "../styles/ProfileGroups.css";
 import ModalCreateTask from "../components/ModalCreateTask";
 import TaskDetailModal from "../components/TaskDetailModal";
 import { Sidebar } from "../components/Sidebar";
+
+
 
 // --- ACTUALIZADO: TaskListItem ahora recibe onEdit ---
 const TaskListItem = ({ task, onToggle, onDelete, onEdit, onClick }) => (
@@ -39,6 +41,50 @@ export const Dashboard = () => {
     const { store, dispatch } = useGlobalReducer();
     const navigate = useNavigate();
 
+    // --- TRAE LA INFORMACION DE LA BASE DE DATOS Y LA GUARDA EN EL STORE ---
+    useEffect(() => {
+        const cargarDatos = async () => {
+            try {
+                const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+                const response = await fetch(
+                    `${backendUrl}/api/users/${store.user.id}/tareas`, 
+                    {
+                        method: "GET",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${store.token}`
+                        }
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    console.error("Error al cargar tareas:", data.msg);
+                    return;
+                }
+
+                dispatch({
+                    type: "LOAD_DATA_FROM_BACKEND",
+                    payload: {
+                        user: store.user,
+                        profile: store.profile,
+                        userTasks: data["Lista de todas las Tareas del usario"],
+                        clans: store.clans,
+                        clanTasks: [],
+                        token: store.token
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error conectando con backend:", error);
+            }
+        };
+
+        cargarDatos();
+    }, []);
+
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [taskType, setTaskType] = useState("user");
 
@@ -69,7 +115,35 @@ export const Dashboard = () => {
     };
 
     const toggleUserTask = (taskId) => dispatch({ type: 'TOGGLE_USER_TASK', payload: { taskId } });
-    const deleteUserTask = (taskId) => dispatch({ type: 'DELETE_USER_TASK', payload: { taskId } });
+    
+    const deleteUserTask = async (taskId) => {
+        try {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+            const response = await fetch(
+                `${backendUrl}/api/users/${store.user.id}/tareas/${taskId}/eliminar`, 
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Authorization": `Bearer ${store.token}`
+                    }
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error(data.msg);
+                return;
+            }
+
+            dispatch({ type: "DELETE_USER_TASK", payload: { taskId } });
+
+        } catch (err) {
+            console.error("Error eliminando tarea", err);
+        }
+    };
+
     const toggleClanTask = (taskId) => dispatch({ type: 'TOGGLE_CLAN_TASK', payload: { taskId } });
     const deleteClanTask = (taskId) => dispatch({ type: 'DELETE_CLAN_TASK', payload: { taskId } });
 

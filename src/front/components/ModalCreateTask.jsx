@@ -19,8 +19,8 @@ function ModalCreateTask({ setShowTaskModal, taskType, taskToEdit = null }) {
     const [descripcion, setDescripcion] = useState("");
     const [direccion, setDireccion] = useState("");
     const [date, setDate] = useState("");
-    const [lat, setLat] = useState(20);
-    const [lng, setLng] = useState(-99);
+    const [lat, setLat] = useState("");
+    const [lng, setLng] = useState("");
 
     const [msg, setMsg] = useState("");
 
@@ -30,8 +30,8 @@ function ModalCreateTask({ setShowTaskModal, taskType, taskToEdit = null }) {
             setFecha(taskToEdit.date || "");
             setDescripcion(taskToEdit.description || "");
             setDireccion(taskToEdit.address || "");
-            setLat(taskToEdit.latitude || 20);
-            setLng(taskToEdit.longitude || -99);
+            setLat(taskToEdit.lat || "");
+            setLng(taskToEdit.lng || "");
         } else {
             setTitulo("");
             setFecha("");
@@ -47,8 +47,8 @@ function ModalCreateTask({ setShowTaskModal, taskType, taskToEdit = null }) {
             setTitulo(taskToEdit.title || "");
             setDescripcion(taskToEdit.description || "");
             setDireccion(taskToEdit.address || "");
-            setLat(taskToEdit.latitude || 20);
-            setLng(taskToEdit.longitude || -99);
+            setLat(taskToEdit.lat || "");
+            setLng(taskToEdit.lng || "");
         } else {
             setTitulo("");
             setDescripcion("");
@@ -61,44 +61,100 @@ function ModalCreateTask({ setShowTaskModal, taskType, taskToEdit = null }) {
         setDireccion(address);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setMsg("");
 
+        const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
         const payloadData = {
-            id: taskToEdit ? taskToEdit.id : undefined,
             title: titulo,
-            date: fecha,
             description: descripcion,
-            address: direccion,
-            latitude: lat,
-            longitude: lng,
+            lat: lat,
+            lng: lng,
+            estado_id: null,
+            evento_id: null,
+            prioridad_id: null
         };
 
-        if (taskType === 'clan') {
-            if (!isEditing && !activeClanId) {
-                setMsg("Error: No hay clan activo.");
-                return;
-            }
-            dispatch({
-                type: isEditing ? 'UPDATE_CLAN_TASK' : 'ADD_TASK_TO_CLAN',
-                payload: { ...payloadData, clanId: activeClanId }
-            });
-        } else {
-            dispatch({
-                type: isEditing ? 'UPDATE_USER_TASK' : 'ADD_USER_TASK',
-                payload: payloadData
-            });
-        }
+        try {
+            if (taskType === "user") {
 
-        setTitulo("");
-        setDescripcion("");
-        setDireccion("");
-        setDate("");
-        setLat(20);
-        setLng(-99);
-        setMsg(isEditing ? "Tarea actualizada" : "Tarea creada");
-        setShowTaskModal(false);
+                // CREAR
+                if (!isEditing) {
+                    const response = await fetch(
+                        `${backendUrl}/api/users/${store.user.id}/tareas`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${store.token}`
+                            },
+                            body: JSON.stringify(payloadData)
+                        }
+                    );
+
+                    // --- DEBUG ---
+                    console.log("STATUS:", response.status);
+                    console.log("HEADERS:", response.headers);
+
+                    // usamos text() en lugar de json() para ver TODO lo que responde Flask
+                    const text = await response.text();
+                    console.log("RAW BACKEND RESPONSE:", text);
+
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (err) {
+                        console.error("La respuesta NO es JSON válido:", text);
+                    }
+                    // --- FIN DEBUG ---
+
+                    if (!response.ok) {
+                        setMsg(data.msg || "Error creando tarea");
+                        return;
+                    }
+
+                    dispatch({
+                        type: "ADD_USER_TASK",
+                        payload: data.tarea
+                    });
+
+                }
+                // EDITAR
+                else {
+                    const response = await fetch(
+                        `${backendUrl}/api/users/${store.user.id}/tareas/${taskToEdit.id}/editar`,
+                        {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${store.token}`
+                            },
+                            body: JSON.stringify(payloadData)
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        setMsg(data.msg || "Error editando tarea");
+                        return;
+                    }
+
+                    dispatch({
+                        type: "UPDATE_USER_TASK",
+                        payload: data.Tarea
+                    });
+                }
+            }
+
+            setShowTaskModal(false);
+
+        } catch (error) {
+            console.error("Error conectando con backend:", error);
+            setMsg("No se pudo conectar con el servidor");
+        }
     };
 
     return (
@@ -117,7 +173,7 @@ function ModalCreateTask({ setShowTaskModal, taskType, taskToEdit = null }) {
                         onChange={e => setTitulo(e.target.value)}
                         style={{ width: "100%", marginBottom: 12, border: "1px solid #1e91ed", borderRadius: 8, padding: 10 }}
                     />
-                    
+
                     <textarea placeholder="Descripción" value={descripcion} onChange={e => setDescripcion(e.target.value)} style={{ width: "100%", marginBottom: 12, border: "1px solid #1e91ed", borderRadius: 8, padding: 10, minHeight: 60 }} />
                     {/* Input de dirección eliminado, solo queda el campo sincronizado con el mapa */}
                     <GoogleMaps
@@ -129,7 +185,7 @@ function ModalCreateTask({ setShowTaskModal, taskType, taskToEdit = null }) {
                         setAddress={handleMapAddressChange}
                     />
                     <div className="modal-footer" style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
-                        <button type="submit" className="btn btn-custom-blue" style={{ fontWeight: 600, fontSize: 18 }}>Crear tarea</button>
+                        <button type="submit" className="btn btn-custom-blue" style={{ fontWeight: 600, fontSize: 18 }}>Guardar</button>
                     </div>
                     <div style={{ color: "#7f00b2", marginTop: 16, textAlign: "center" }}>{msg}</div>
                 </form>

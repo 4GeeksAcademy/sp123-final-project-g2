@@ -70,7 +70,6 @@ def agregar_tarea_user(user_id):
 
     title = data.get("title")
     description = data.get("description")
-    date = data.get("date")
     lat = data.get("lat")
     lng = data.get("lng")
     estado_id = data.get("estado_id")
@@ -78,12 +77,11 @@ def agregar_tarea_user(user_id):
     prioridad_id = data.get("prioridad_id")
 
     if not title:
-        return jsonify({"msg": "El título es obligatorio"}), 400
+        return jsonify({"msg": "El title es obligatorio"}), 400
 
     nueva_tarea = Task(
         title=title,
         description=description,
-        date=date,
         lat=lat,
         lng=lng,
         estado_id=estado_id,

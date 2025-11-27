@@ -57,14 +57,14 @@ export default function storeReducer(store, action = {}) {
 
     case "ADD_USER_TASK":
       const newUserTask = {
-        id: new Date().getTime(),
+        id: action.payload.id,
         title: action.payload.title,
         description: action.payload.description || "",
         address: action.payload.address || "",
         date: new Date().toISOString().split("T")[0],
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        latitude: action.payload.latitude,
-        longitude: action.payload.longitude,
+        latitude: action.payload.lat,
+        longitude: action.payload.lng,
         guests: [],
         completed: false
       };
