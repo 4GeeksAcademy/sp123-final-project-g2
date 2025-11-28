@@ -21,7 +21,7 @@ def forgot_password():
     if not user:
         return jsonify({"msg": "Usuario no encontrado o no registrado"}), 404
 
-    reset_email = f"{url_front}/resetPassword/token"
+    reset_email = f"{url_front}resetPassword/token"
 
     msg = Message(
         'Recupera contraseña',
