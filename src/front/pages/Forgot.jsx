@@ -6,7 +6,7 @@ import TextInput from "../components/TextInput";
 import { requestReset } from "../jsApiComponents/auth";
 
 export function Forgot() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(""); 
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState("");
   const [token, setToken] = useState("");

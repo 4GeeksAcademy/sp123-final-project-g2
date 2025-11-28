@@ -1,3 +1,4 @@
+// src/front/components/InternalNavbar.jsx
 import { Link, useNavigate } from "react-router-dom";
 import "./InternalNavbar.css";
 import { toast } from "react-toastify";
@@ -14,6 +15,7 @@ export const InternalNavbar = ({ setIsLoggedIn }) => {
   return (
     <nav className="navbar navbar-expand-lg custom-navbar shadow-sm">
       <div className="container d-flex align-items-center">
+
         <div className="d-flex align-items-center gap-2">
           <Link to="/home" className="internalnavbar-brand fw-bold fs-4 meetfit-text">
             MeetFit

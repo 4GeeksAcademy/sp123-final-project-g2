@@ -15,13 +15,13 @@ from flask_jwt_extended import create_access_token
 from api.commands import setup_commands
 from api.admin import setup_admin
 from api.routes import api
-from api.models import db, User, Activity, Message, PasswordResetToken
+from api.models import db, User, Activity
 from api.utils import APIException, generate_sitemap
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_swagger import swagger
 from flask_migrate import Migrate
-from flask import Flask, request, jsonify, url_for, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory
 from datetime import datetime, timedelta
 import re
 import os
@@ -77,6 +77,7 @@ app.config["MAIL_USE_SSL"] = False
 app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
+app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
 
 mail = Mail(app)
 
@@ -204,22 +205,6 @@ def serve_any_other_file(path):
     return response
 
 
-@app.route("/test-email")
-def test_email():
-    try:
-        msg = Message(
-            subject="Prueba de correo",
-            sender=os.getenv("MAIL_DEFAULT_SENDER"),
-            recipients=[os.getenv("MAIL_USERNAME")],
-            body="Este es un correo de prueba."
-        )
-        mail.send(msg)
-        return {"status": "ok", "message": "Correo enviado correctamente"}
-    except Exception as e:
-        print("ERROR:", e)
-        return {"status": "error", "details": str(e)}, 500
-
-
 # Endpoint: solicitar recuperación -------------------------------
 @app.route("/api/forgot", methods=["POST"])
 def forgot_password():
@@ -253,7 +238,8 @@ def forgot_password():
         msg = Message(
             "Restablece tu contraseña",
             recipients=[email],
-            html=html_body
+            html=html_body,
+            sender=os.getenv("MAIL_DEFAULT_SENDER"),
         )
         mail.send(msg)
     except Exception as e:
@@ -263,8 +249,6 @@ def forgot_password():
     return jsonify({"message": message}), 200
 
 # Endpoint: restablecer contraseña------------------------------------
-
-
 @app.route("/api/reset/<token>", methods=["POST"])
 def reset_password(token):
     data = request.json
@@ -285,9 +269,48 @@ def reset_password(token):
     return jsonify({"message": "Contraseña restablecida correctamente."}), 200
 # FIN DE FORGOT PASSWORD Y RESET PASSWORD --------------------------------------
 
+#ENDPOINT CAMBIO DE CONTRASEÑA--------------------------------------------------
+@app.route("/api/change-password", methods=["POST"])
+@jwt_required()
+def change_password():
+    data = request.get_json(silent=True) or {}
+
+    current_password = data.get("current_password")
+    new_password = data.get("new_password")
+    confirm_password = data.get("confirm_password")
+
+    # Validaciones de presencia
+    if not current_password or not new_password or not confirm_password:
+        return jsonify({"error": "Debes completar todos los campos."}), 400
+
+    # Validar confirmación
+    if new_password != confirm_password:
+        return jsonify({"error": "Las contraseñas no coinciden."}), 400
+
+    # Validación mínima de seguridad (8 caracteres)
+    if len(new_password) < 8:
+        return jsonify({"error": "La nueva contraseña debe tener al menos 8 caracteres."}), 400
+
+    # Obtener usuario autenticado mediante JWT
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "Usuario no encontrado."}), 404
+
+    # Comparar contraseña actual
+    if not check_password_hash(user.password, current_password):
+        return jsonify({"error": "La contraseña actual es incorrecta."}), 400
+
+    # Actualizar hash de contraseña
+    user.password = generate_password_hash(new_password)
+    db.session.commit()
+
+    return jsonify({"message": "Contraseña cambiada correctamente."}), 200
+
+
+
 # REPORTAR USUARIO
-
-
 @app.route('/api/report_user/<int:user_id>', methods=['POST'])
 @jwt_required()
 def report_user(user_id):
