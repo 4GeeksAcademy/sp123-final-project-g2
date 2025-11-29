@@ -264,7 +264,7 @@ def reset_password(token):
     if not user:
         return jsonify({"error": "Usuario no encontrado."}), 400
 
-    user.password = generate_password_hash(new_password)
+    user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
     db.session.commit()
     return jsonify({"message": "Contraseña restablecida correctamente."}), 200
 # FIN DE FORGOT PASSWORD Y RESET PASSWORD --------------------------------------
@@ -303,7 +303,7 @@ def change_password():
         return jsonify({"error": "La contraseña actual es incorrecta."}), 400
 
     # Actualizar hash de contraseña
-    user.password = generate_password_hash(new_password)
+    user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
     db.session.commit()
 
     return jsonify({"message": "Contraseña cambiada correctamente."}), 200

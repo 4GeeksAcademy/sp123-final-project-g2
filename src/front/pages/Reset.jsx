@@ -1,34 +1,32 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useParams } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import TextInput from "../components/TextInput";
-
+const BASE_URL = import.meta.env.VITE_BACKEND_URL
 export function Reset() {
   const nav = useNavigate();
-  const [current, setCurrent] = useState("");
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const { token } = useParams()
+
 
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
 
-    if (!current) return setErr("Debes introducir tu contraseña actual.");
     if (p1.length < 8) return setErr("La nueva contraseña debe tener al menos 8 caracteres.");
     if (p1 !== p2) return setErr("Las contraseñas no coinciden.");
 
     setLoading(true);
 
     try {
-      const res = await fetch("/api/change-password", {
+      const res = await fetch(`${BASE_URL}/api/reset/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          current_password: current,
-          new_password: p1,
-          confirm_password: p2,
+          password: p1,
         }),
       });
 
@@ -52,14 +50,7 @@ export function Reset() {
       subtitle="Introduce tu contraseña actual y define una nueva"
     >
       <form onSubmit={submit} noValidate>
-        <TextInput
-          label="Contraseña actual"
-          name="current"
-          value={current}
-          onChange={(e) => setCurrent(e.target.value)}
-          withToggle
-          placeholder="••••••••"
-        />
+
         <TextInput
           label="Nueva contraseña"
           name="p1"
