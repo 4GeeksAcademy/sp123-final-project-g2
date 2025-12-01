@@ -17,10 +17,11 @@ export const Profile = () => {
   const [editing, setEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [profileTab, setProfileTab] = useState("profile");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const runLogOut = () => {
     localStorage.removeItem("JWT-STORAGE-KEY");
-toast.success("🔐 Sesión cerrada correctamente");
+    toast.success("🔐 Sesión cerrada correctamente");
 
     return navigate("/login");
   };
@@ -77,7 +78,7 @@ toast.success("🔐 Sesión cerrada correctamente");
   return (
     <div className="d-flex flex-column bg-dark text-light w-100 vh-100">
 
-    <div className="row flex-grow-1 g-0">
+      <div className="row flex-grow-1 g-0">
 
         {/* SIDEBAR */}
         <div className="col-12 col-md-3 border-end bg-dark text-light p-3 mt-4">
@@ -149,9 +150,13 @@ toast.success("🔐 Sesión cerrada correctamente");
                           Editar perfil
                         </button>
 
-                        <button className="mt-3 w-100 mf-neon-btn" onClick={runLogOut}>
+                        <button
+                          className="mt-3 w-100 mf-neon-btn"
+                          onClick={() => setShowLogoutModal(true)}
+                        >
                           Cerrar sesión
                         </button>
+
 
                         <button
                           className="mt-3 w-100 mf-neon-btn mf-neon-btn--danger"
@@ -181,6 +186,39 @@ toast.success("🔐 Sesión cerrada correctamente");
 
                             <button className="mf-neon-btn mf-neon-btn--danger" onClick={runDeleteUser}>
                               Confirmar eliminación
+                            </button>
+                          </Modal.Footer>
+                        </Modal>
+
+                        <Modal
+                          show={showLogoutModal}
+                          onHide={() => setShowLogoutModal(false)}
+                          centered
+                          backdrop="static"
+                        >
+                          <Modal.Header closeButton className="custom-navbar meetfit-text-custom">
+                            <Modal.Title>Cerrar sesión</Modal.Title>
+                          </Modal.Header>
+
+                          <Modal.Body className="bg-dark text-light text-center meetfit">
+                            <p>¿Quieres cerrar tu sesión?</p>
+                            <p className="text-info fw-bold">Podrás iniciar sesión nuevamente cuando quieras.</p>
+                          </Modal.Body>
+
+                          <Modal.Footer className="bg-dark meetfit-text-custom p-2">
+
+                            <button
+                              className="mf-neon-btn"
+                              onClick={() => setShowLogoutModal(false)}
+                            >
+                              Cancelar
+                            </button>
+
+                            <button
+                              className="mf-neon-btn mf-neon-btn--danger"
+                              onClick={runLogOut}
+                            >
+                              Confirmar cierre de sesión
                             </button>
                           </Modal.Footer>
                         </Modal>
@@ -232,7 +270,7 @@ toast.success("🔐 Sesión cerrada correctamente");
             )}
 
           </Container>
-          
+
         </div>
         <br></br><br></br>
       </div>
