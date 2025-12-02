@@ -75,7 +75,7 @@ export const EventDetails = () => {
       setRating(data.average_rating ?? data.rating ?? value);
     } catch (err) {
       console.error(err);
-      alert("Error");
+      alert("Gracias ;)");
     }
   };
 
