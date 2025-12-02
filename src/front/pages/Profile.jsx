@@ -180,7 +180,7 @@ export const Profile = () => {
                           </Modal.Body>
                           <Modal.Footer className="bg-dark meetfit-text-custom p-2">
 
-                            <button className="mf-neon-btn mf-neon-btn--danger" onClick={() => setShowDeleteModal(false)}>
+                            <button className="mf-neon-btn " onClick={() => setShowDeleteModal(false)}>
                               Cancelar
                             </button>
 
