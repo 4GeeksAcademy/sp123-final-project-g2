@@ -211,8 +211,6 @@
           const data = await res.json().catch(() => ({}));
           show(JSON.stringify(data, null, 2));
         });
-
-      // load initially
       loadUsers();
     </script>
   </body>

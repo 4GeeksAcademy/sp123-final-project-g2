@@ -159,111 +159,160 @@
 <script>
   async function loadUsers() {
     const res = await fetch("/api/users");
-    <script>
-    async function loadUsers(){
-      const res = await fetch('/api/users');
-      const data = await res.json();
-      const tbody = document.querySelector('#users-table tbody');
-      tbody.innerHTML = '';
-      data.forEach(u=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${u.id}</td><td>${u.email}</td><td>${u.first_name||''}</td><td>${u.last_name||''}</td><td>${u.is_active? 'Sí':'No'}</td><td><div class="btn-group" role="group"><button class="btn btn-sm btn-outline-primary btn-fill-login" data-email="${u.email}">Llenar</button><button class="btn btn-sm btn-outline-success btn-login-user" data-email="${u.email}">Login</button><button class="btn btn-sm btn-outline-info btn-test-private" data-email="${u.email}">/private</button></div></td>`;
-        tbody.appendChild(tr);
-      });
-      attachRowListeners();
-    }
+    const data = await res.json();
+    const tbody = document.querySelector("#users-table tbody");
+    tbody.innerHTML = "";
+    data.forEach((u) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${u.id}</td><td>${u.email}</td><td>${
+        u.first_name || ""
+      }</td><td>${u.last_name || ""}</td><td>${
+        u.is_active ? "Sí" : "No"
+      }</td><td><div class="btn-group" role="group"><button class="btn btn-sm btn-outline-primary btn-fill-login" data-email="${
+        u.email
+      }">Llenar</button><button class="btn btn-sm btn-outline-success btn-login-user" data-email="${
+        u.email
+      }">Login</button><button class="btn btn-sm btn-outline-info btn-test-private" data-email="${
+        u.email
+      }">/private</button></div></td>`;
+      tbody.appendChild(tr);
+    });
+    attachRowListeners();
+  }
 
-    function show(msg){
-      const out = document.getElementById('output');
-      out.innerText = msg;
-    }
+  function show(msg) {
+    const out = document.getElementById("output");
+    out.innerText = msg;
+  }
 
-    document.getElementById('signup-form').addEventListener('submit', async (e)=>{
+  document
+    .getElementById("signup-form")
+    .addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = document.getElementById('su-email').value;
-      const first = document.getElementById('su-first').value;
-      const last = document.getElementById('su-last').value;
-      const pass = document.getElementById('su-pass').value;
-      const res = await fetch('/signup', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password: pass, first_name: first, last_name: last})});
+      const email = document.getElementById("su-email").value;
+      const first = document.getElementById("su-first").value;
+      const last = document.getElementById("su-last").value;
+      const pass = document.getElementById("su-pass").value;
+      const res = await fetch("/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password: pass,
+          first_name: first,
+          last_name: last,
+        }),
+      });
       const txt = await res.text();
       show(txt);
       await loadUsers();
     });
 
-    document.getElementById('login-form').addEventListener('submit', async (e)=>{
+  document
+    .getElementById("login-form")
+    .addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = document.getElementById('li-email').value;
-      const pass = document.getElementById('li-pass').value;
-      const res = await fetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password: pass})});
-      const data = await res.json().catch(()=>({}));
+      const email = document.getElementById("li-email").value;
+      const pass = document.getElementById("li-pass").value;
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: pass }),
+      });
+      const data = await res.json().catch(() => ({}));
       show(JSON.stringify(data, null, 2));
-      if(data.token) sessionStorage.setItem('token', data.token);
-      if(data.refresh_token) sessionStorage.setItem('refresh_token', data.refresh_token);
+      if (data.token) sessionStorage.setItem("token", data.token);
+      if (data.refresh_token)
+        sessionStorage.setItem("refresh_token", data.refresh_token);
     });
 
-    document.getElementById('btn-refresh').addEventListener('click', async ()=>{
-      const refresh_token = sessionStorage.getItem('refresh_token');
-      if(!refresh_token){ show('No hay refresh token en sessionStorage'); return; }
-      const res = await fetch('/refresh', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({refresh_token})});
-      const data = await res.json().catch(()=>({}));
-      show(JSON.stringify(data, null, 2));
-      if(data.token) sessionStorage.setItem('token', data.token);
-    });
-
-    document.getElementById('btn-private').addEventListener('click', async ()=>{
-      const token = sessionStorage.getItem('token');
-      const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
-      const res = await fetch('/private', {method:'GET', headers});
-      const data = await res.json().catch(()=>({}));
-      show(JSON.stringify(data, null, 2));
-    });
-
-    function attachRowListeners(){
-      document.querySelectorAll('.btn-fill-login').forEach(b=>{
-        b.onclick = ()=>{
-          const email = b.getAttribute('data-email');
-          document.getElementById('li-email').value = email;
-          document.getElementById('li-pass').value = '';
-        };
-      });
-      document.querySelectorAll('.btn-login-user').forEach(b=>{
-        b.onclick = async ()=>{
-          const email = b.getAttribute('data-email');
-          const pass = window.prompt('Password for ' + email + ':','');
-          if(pass === null) return;
-          const res = await fetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password: pass})});
-          const data = await res.json().catch(()=>({}));
-          show(JSON.stringify(data, null, 2));
-          if(data.token) sessionStorage.setItem('token', data.token);
-          if(data.refresh_token) sessionStorage.setItem('refresh_token', data.refresh_token);
-        };
-      });
-      document.querySelectorAll('.btn-test-private').forEach(b=>{
-        b.onclick = async ()=>{
-          const token = sessionStorage.getItem('token');
-          const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
-          const res = await fetch('/private', {method:'GET', headers});
-          const data = await res.json().catch(()=>({}));
-          show(JSON.stringify(data, null, 2));
-        };
-      });
+  document.getElementById("btn-refresh").addEventListener("click", async () => {
+    const refresh_token = sessionStorage.getItem("refresh_token");
+    if (!refresh_token) {
+      show("No hay refresh token en sessionStorage");
+      return;
     }
-
-    document.getElementById('btn-run').addEventListener('click', async ()=>{
-      const method = document.getElementById('api-method').value;
-      const path = document.getElementById('api-path').value;
-      let body = document.getElementById('api-body').value;
-      let options = {method, headers:{}};
-      if(body){
-        try{ body = JSON.parse(body); options.body = JSON.stringify(body); options.headers['Content-Type']='application/json'; }catch(e){ options.body = document.getElementById('api-body').value; }
-      }
-      const res = await fetch(path, options);
-      const text = await res.text();
-      try{ show(JSON.stringify(JSON.parse(text), null, 2)); }catch(e){ show(text); }
+    const res = await fetch("/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token }),
     });
+    const data = await res.json().catch(() => ({}));
+    show(JSON.stringify(data, null, 2));
+    if (data.token) sessionStorage.setItem("token", data.token);
+  });
 
-    document.getElementById('btn-clear-output').addEventListener('click', ()=>{ document.getElementById('output').innerText = ''; });
+  document.getElementById("btn-private").addEventListener("click", async () => {
+    const token = sessionStorage.getItem("token");
+    const headers = token ? { Authorization: "Bearer " + token } : {};
+    const res = await fetch("/private", { method: "GET", headers });
+    const data = await res.json().catch(() => ({}));
+    show(JSON.stringify(data, null, 2));
+  });
 
-    loadUsers();
+  function attachRowListeners() {
+    document.querySelectorAll(".btn-fill-login").forEach((b) => {
+      b.onclick = () => {
+        const email = b.getAttribute("data-email");
+        document.getElementById("li-email").value = email;
+        document.getElementById("li-pass").value = "";
+      };
+    });
+    document.querySelectorAll(".btn-login-user").forEach((b) => {
+      b.onclick = async () => {
+        const email = b.getAttribute("data-email");
+        const pass = window.prompt("Password for " + email + ":", "");
+        if (pass === null) return;
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password: pass }),
+        });
+        const data = await res.json().catch(() => ({}));
+        show(JSON.stringify(data, null, 2));
+        if (data.token) sessionStorage.setItem("token", data.token);
+        if (data.refresh_token)
+          sessionStorage.setItem("refresh_token", data.refresh_token);
+      };
+    });
+    document.querySelectorAll(".btn-test-private").forEach((b) => {
+      b.onclick = async () => {
+        const token = sessionStorage.getItem("token");
+        const headers = token ? { Authorization: "Bearer " + token } : {};
+        const res = await fetch("/private", { method: "GET", headers });
+        const data = await res.json().catch(() => ({}));
+        show(JSON.stringify(data, null, 2));
+      };
+    });
+  }
+
+  document.getElementById("btn-run").addEventListener("click", async () => {
+    const method = document.getElementById("api-method").value;
+    const path = document.getElementById("api-path").value;
+    let body = document.getElementById("api-body").value;
+    let options = { method, headers: {} };
+    if (body) {
+      try {
+        body = JSON.parse(body);
+        options.body = JSON.stringify(body);
+        options.headers["Content-Type"] = "application/json";
+      } catch (e) {
+        options.body = document.getElementById("api-body").value;
+      }
+    }
+    const res = await fetch(path, options);
+    const text = await res.text();
+    try {
+      show(JSON.stringify(JSON.parse(text), null, 2));
+    } catch (e) {
+      show(text);
+    }
+  });
+
+  document.getElementById("btn-clear-output").addEventListener("click", () => {
+    document.getElementById("output").innerText = "";
+  });
+
+  loadUsers();
 </script>
 {% endblock %}

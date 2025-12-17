@@ -44,8 +44,6 @@ function Private() {
         removeToken();
         navigate("/");
     };
-
-    // obtener nombre registrado desde localStorage (establecido durante el registro)
     let registeredName = '';
     try { registeredName = localStorage.getItem('registered_name') || ''; } catch (e) { registeredName = ''; }
     const rawName = registeredName || (email ? email.split('@')[0] : '');

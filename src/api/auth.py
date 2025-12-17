@@ -3,10 +3,8 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, current_app
 
-
 def _secret():
     return current_app.config.get('SECRET_KEY')
-
 
 def generate_token(user_id, expires_hours=2):
     payload = {
@@ -18,7 +16,6 @@ def generate_token(user_id, expires_hours=2):
         token = token.decode('utf-8')
     return token
 
-
 def verify_token(token):
     try:
         payload = jwt.decode(token, _secret(), algorithms=["HS256"])
@@ -27,7 +24,6 @@ def verify_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
-
 
 def jwt_required(f):
     @wraps(f)

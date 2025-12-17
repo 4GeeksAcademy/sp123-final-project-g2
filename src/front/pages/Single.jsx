@@ -1,4 +1,3 @@
-// Import necessary hooks and components from react-router-dom and other libraries.
 import { Link, useParams } from "react-router-dom";
 import PropTypes from "prop-types";
 import useGlobalReducer from "../hooks/useGlobalReducer";

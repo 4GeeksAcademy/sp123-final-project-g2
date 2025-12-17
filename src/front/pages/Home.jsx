@@ -50,7 +50,7 @@ export default function Home() {
 			justifyContent: "space-between",
 			paddingTop: "2.5rem",
 		}}>
-			{/* Left: login form */}
+			{}
 			<div style={{ width: '36%', paddingLeft: '2%', boxSizing: 'border-box' }}>
 				<form onSubmit={handleLogin} className="p-4 rounded shadow" style={{ background: "#fff", maxWidth: "400px", width: "100%", marginLeft: 0 }}>
 					<h2 className="mb-4 text-center" style={{ color: "#8000ff" }}>Iniciar sesión</h2>
@@ -74,7 +74,6 @@ export default function Home() {
 					</div>
 				</form>
 			</div>
-
 
 		</div>
 	);

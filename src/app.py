@@ -19,8 +19,6 @@ from api.routes import api
 from api.admin import setup_admin
 from api.commands import setup_commands
 
-# from models import Person
-
 ENV = "development" if os.getenv("FLASK_DEBUG") == "1" else "production"
 static_file_dir = os.path.join(os.path.dirname(
     os.path.realpath(__file__)), '../dist/')
@@ -30,8 +28,6 @@ app.url_map.strict_slashes = False
 load_dotenv()
 
 _CORS(app)
-
-# database configuration
 db_url = os.getenv("DATABASE_URL")
 if db_url is not None:
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url.replace(
@@ -42,25 +38,14 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 MIGRATE = Migrate(app, db, compare_type=True)
 db.init_app(app)
-
-
-# add the admin
 setup_admin(app)
-
-# add the admin
 setup_commands(app)
-
-# Add all endpoints form the API with a "api" prefix
 app.register_blueprint(api, url_prefix='/api')
-
-# Handle/serialize errors like a JSON object
 
 
 @app.errorhandler(APIException)
 def handle_invalid_usage(error):
     return jsonify(error.to_dict()), error.status_code
-
-# generate sitemap with all your endpoints
 
 
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'super-secret-key')
@@ -121,15 +106,12 @@ def refresh():
     try:
         payload = jwt.decode(
             refresh_token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        # ensure token is a refresh token
         if payload.get('type') != 'refresh':
             return jsonify({'msg': 'Token inválido'}), 401
         from api.models import User
         user = User.query.get(payload.get('user_id'))
         if not user:
             return jsonify({'msg': 'Usuario no encontrado'}), 404
-
-        # issue new access token
         access_token = jwt.encode({
             'user_id': user.id,
             'exp': datetime.utcnow() + timedelta(minutes=15)
