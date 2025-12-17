@@ -1,75 +1,147 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { isTokenExpired, removeToken, getToken, getRefreshToken, refreshAccessToken } from "../utils/auth";
-import inicioImg from "../assets/img/inicio-sesion.jpg";
+import { Table, Button, Container, Row, Col, Modal, Form } from "react-bootstrap";
+import { getToken, removeToken } from "../utils/auth";
 
-function Private() {
-    const [email, setEmail] = useState("");
+export default function Private() {
     const navigate = useNavigate();
+    const [users, setUsers] = useState([]);
+    const [showModal, setShowModal] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [newEmail, setNewEmail] = useState("");
+
+    const token = getToken();
 
     useEffect(() => {
-        const checkAndFetch = async () => {
-            let token = getToken();
-            if (!token || isTokenExpired(token)) {
-                const newToken = await refreshAccessToken();
-                if (!newToken) {
-                    removeToken();
-                    navigate("/");
-                    return;
-                }
-                token = newToken;
-            }
-
-            try {
-                const res = await fetch(`/api/private`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (res.status !== 200) {
-                    removeToken();
-                    navigate("/");
-                    return;
-                }
-                const data = await res.json();
-                setEmail(data.email);
-            } catch (e) {
-                removeToken();
-                navigate("/");
-            }
-        };
-
-        checkAndFetch();
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+        fetchUsers();
     }, [navigate]);
+
+    const fetchUsers = () => {
+        fetch("/api/users", {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((res) => res.json())
+            .then((data) => setUsers(data))
+            .catch((err) => console.error(err));
+    };
 
     const handleLogout = () => {
         removeToken();
-        navigate("/");
+        navigate("/login");
     };
-    let registeredName = '';
-    try { registeredName = localStorage.getItem('registered_name') || ''; } catch (e) { registeredName = ''; }
-    const rawName = registeredName || (email ? email.split('@')[0] : '');
-    const displayName = rawName ? (rawName.charAt(0).toUpperCase() + rawName.slice(1)) : '';
+
+    const handleEdit = (user) => {
+        setSelectedUser(user);
+        setNewEmail(user.email);
+        setShowModal(true);
+    };
+
+    const handleSave = () => {
+        if (!selectedUser) return;
+        fetch(`/api/users/${selectedUser.id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ email: newEmail }),
+        })
+            .then((res) => {
+                if (!res.ok) throw new Error("Failed to update");
+                return res.json();
+            })
+            .then(() => {
+                setShowModal(false);
+                fetchUsers();
+            })
+            .catch((err) => console.error(err));
+    };
+
+    const handleDelete = (id) => {
+        if (!window.confirm("¿Seguro que quieres eliminar este usuario?")) return;
+        fetch(`/api/users/${id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((res) => {
+                if (!res.ok) throw new Error("Failed to delete");
+                fetchUsers();
+            })
+            .catch((err) => console.error(err));
+    };
 
     return (
-        <div
-            className="w-100 d-flex flex-column align-items-start justify-content-center"
-            style={{
-                height: "100vh",
-                overflow: "hidden",
-                width: '100%',
-                padding: 0,
-                margin: 0,
-                backgroundImage: `url(${inicioImg})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat'
-            }}
-        >
-            <div className="p-4 rounded shadow text-start" style={{ background: "rgba(255,255,255,0.88)", maxWidth: "420px", width: "100%", marginLeft: '2rem' }}>
-                <h2 className="mb-2" style={{ color: "#8000ff" }}>Bienvenido</h2>
-                <p className="lead mb-4" style={{ color: "#8000ff" }}>{displayName}</p>
-                <button className="btn btn-warning w-100" onClick={handleLogout}>Cerrar sesión</button>
-            </div>
-        </div>
+        <Container className="mt-4">
+            <Row className="mb-3">
+                <Col>
+                    <h2>Bienvenido a la ruta privada</h2>
+                </Col>
+                <Col className="text-end">
+                    <Button variant="danger" onClick={handleLogout}>
+                        Cerrar sesión
+                    </Button>
+                </Col>
+            </Row>
+
+            <Table striped bordered hover responsive>
+                <thead className="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Email</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {users.length > 0 ? (
+                        users.map((user) => (
+                            <tr key={user.id}>
+                                <td>{user.id}</td>
+                                <td>{user.email}</td>
+                                <td>
+                                    <Button variant="warning" size="sm" onClick={() => handleEdit(user)}>
+                                        Editar
+                                    </Button>{' '}
+                                    <Button variant="danger" size="sm" onClick={() => handleDelete(user.id)}>
+                                        Eliminar
+                                    </Button>
+                                </td>
+                            </tr>
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan="3" className="text-center">
+                                No hay usuarios registrados
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </Table>
+
+            <Modal show={showModal} onHide={() => setShowModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Editar Usuario</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form>
+                        <Form.Group>
+                            <Form.Label>Email</Form.Label>
+                            <Form.Control type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowModal(false)}>
+                        Cancelar
+                    </Button>
+                    <Button variant="primary" onClick={handleSave}>
+                        Guardar
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+        </Container>
     );
 }
-export default Private;

@@ -4,10 +4,11 @@ This module takes care of starting the API Server, Loading the DB and Adding the
 from flask import Flask, request, jsonify, url_for, Blueprint, redirect
 from api.models import db, User
 from api.utils import generate_sitemap, APIException
+from api.auth import jwt_required
 from flask_cors import CORS
 
-CORS(api)
 api = Blueprint('api', __name__)
+CORS(api)
 
 
 @api.route('/hello', methods=['POST', 'GET'])
@@ -21,7 +22,8 @@ def handle_hello():
 
 
 @api.route('/users', methods=['GET'])
-def list_users():
+@jwt_required
+def list_users(auth_user_id):
     users = User.query.all()
     data = [
         {
@@ -34,6 +36,39 @@ def list_users():
         for u in users
     ]
     return jsonify(data), 200
+
+
+@api.route('/users/<int:user_id>', methods=['PUT'])
+@jwt_required
+def update_user(auth_user_id, user_id):
+    data = request.get_json() or {}
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
+    user.email = data.get('email', user.email)
+    if 'first_name' in data:
+        user.first_name = data.get('first_name')
+    if 'last_name' in data:
+        user.last_name = data.get('last_name')
+    db.session.commit()
+    return jsonify({
+        'id': user.id,
+        'email': user.email,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'is_active': bool(user.is_active)
+    }), 200
+
+
+@api.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required
+def delete_user(auth_user_id, user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"msg": "Usuario eliminado"}), 200
 
 
 @api.route('/dev-tools', methods=['GET'])
