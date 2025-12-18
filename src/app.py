@@ -26,6 +26,8 @@ app = Flask(__name__)
 app.url_map.strict_slashes = False
 
 load_dotenv()
+if not os.path.exists('.env'):
+    load_dotenv('.env.example')
 
 _CORS(app)
 db_url = os.getenv("DATABASE_URL")

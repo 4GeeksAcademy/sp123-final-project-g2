@@ -22,7 +22,6 @@ def setup_admin(app):
     admin = Admin(
         app,
         name='TaskFlow Admin',
-        template_mode='bootstrap3',
         index_view=MyAdminIndexView()
     )
 

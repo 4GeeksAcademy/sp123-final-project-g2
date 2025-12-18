@@ -24,10 +24,11 @@ pyjwt = "*"
 werkzeug = "*"
 
 [requires]
-python_version = "3.13"
+python_version = "3.11"
 
 [scripts]
-start = "bash -lc 'PYTHONPATH=src flask run -p 3001 -h 0.0.0.0'"
+start = "bash -lc 'PYTHONPATH=src FLASK_APP=src.app FLASK_DEBUG=1 bash ./bin/start.sh'"
+prod = "bash -lc 'fuser -k 3001/tcp || true; sleep 0.5; PYTHONPATH=src gunicorn -w 2 -b 0.0.0.0:3001 src.app:app'"
 init = "flask db init"
 migrate = "flask db migrate"
 local = "heroku local"
