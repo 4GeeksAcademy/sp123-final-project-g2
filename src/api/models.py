@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
+from datetime import datetime
 
 
 db = SQLAlchemy()
