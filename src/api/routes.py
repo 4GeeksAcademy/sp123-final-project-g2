@@ -16,7 +16,7 @@ def users():
     response_body = {}
 
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Users)).scalars().all()
+        rows = db.session.execute(db.select(Users)).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de usuarios'
@@ -33,7 +33,7 @@ def users():
                     current_points=data.get('current_points'),
                     registration_date=data.get('registration_date'),
                     trial_end_date=data.get('trial_end_date'),
-                    last_access=data.get('last_acces'))
+                    last_access=data.get('last_access'))
         db.session.add(row)
         db.session.commit()
         response_body['results'] = row.serialize()
@@ -47,8 +47,7 @@ def user(user_id):
     response_body = {}
 
     row = db.session.execute(
-        db.select(Users).where(Users.user_id == user_id)
-    ).scalar()
+        db.select(Users).where(Users.user_id == user_id)).scalar()
 
     if not row:
         response_body['message'] = 'Usuario no encontrado'
@@ -90,7 +89,7 @@ def courses():
     response_body = {}
 
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Courses)).scalars().all()
+        rows = db.session.execute(db.select(Courses)).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de cursos'
@@ -118,7 +117,7 @@ def course(course_id):
     response_body = {}
 
     row = db.session.execute(
-        db.select(Courses).where(Courses.course_id == course_id)).scalars().all()
+        db.select(Courses).where(Courses.course_id == course_id)).scalar()
 
     if not row:
         response_body['message'] = 'Curso no encontrado'
@@ -151,7 +150,6 @@ def course(course_id):
 
         response_body['message'] = f'Curso {course_id} eliminado'
         return response_body, 200
-
     return response_body, 404
 
 
@@ -160,7 +158,7 @@ def modules():
     response_body = {}
 
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Modules)).scalars().all()
+        rows = db.session.execute(db.select(Modules)).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de módulos'
@@ -168,20 +166,16 @@ def modules():
 
     if request.method == 'POST':
         data = request.json
-        row = Modules(
-            title=data.get('title'),
-            order=data.get('order'),
-            points=data.get('points'),
-            course_id=data.get('course_id')
-        )
-
+        row = Modules(title=data.get('title'),
+                      order=data.get('order'),
+                      points=data.get('points'),
+                      course_id=data.get('course_id'))
         db.session.add(row)
         db.session.commit()
 
         response_body['results'] = row.serialize()
         response_body['message'] = 'Módulo creado'
         return response_body, 201
-
     return response_body, 404
 
 
@@ -221,7 +215,6 @@ def module(module_id):
 
         response_body['message'] = f'Módulo {module_id} eliminado'
         return response_body, 200
-
     return response_body, 404
 
 
@@ -230,7 +223,7 @@ def purchases():
     response_body = {}
 
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Purchases)).scalars().all()
+        rows = db.session.execute(db.select(Purchases)).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de compras'
@@ -238,22 +231,18 @@ def purchases():
 
     if request.method == 'POST':
         data = request.json
-        row = Purchases(
-            price=data.get('price'),
-            total=data.get('total'),
-            status=data.get('status'),
-            start_date=data.get('start_date'),
-            course_id=data.get('course_id'),
-            user_id=data.get('user_id')
-        )
-
+        row = Purchases(price=data.get('price'),
+                        total=data.get('total'),
+                        status=data.get('status'),
+                        start_date=data.get('start_date'),
+                        course_id=data.get('course_id'),
+                        user_id=data.get('user_id'))
         db.session.add(row)
         db.session.commit()
 
         response_body['results'] = row.serialize()
         response_body['message'] = 'Compra creada'
         return response_body, 201
-
     return response_body, 404
 
 
@@ -262,8 +251,7 @@ def purchase(purchase_id):
     response_body = {}
 
     row = db.session.execute(
-        db.select(Purchases).where(Purchases.purchase_id == purchase_id)
-    ).scalar()
+        db.select(Purchases).where(Purchases.purchase_id == purchase_id)).scalar()
 
     if not row:
         response_body['message'] = 'Compra no encontrada'
@@ -296,5 +284,4 @@ def purchase(purchase_id):
 
         response_body['message'] = f'Compra {purchase_id} eliminada'
         return response_body, 200
-
     return response_body, 404

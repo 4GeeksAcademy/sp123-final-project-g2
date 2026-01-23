@@ -12,7 +12,7 @@ class Users(db.Model):
     last_name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.Enum("student",
                                "teacher",
-                               "demo", name="role"), default="student")
+                               "demo", name="role_users"), default="student")
     email = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     current_points = db.Column(db.Integer, default=0, nullable=False)
@@ -49,7 +49,7 @@ class Courses(db.Model):
       points = db.Column(db.Integer)
       created_by = db.Column(db.Integer, db.ForeignKey('users.user_id'))
       created_to = db.relationship('Users', foreign_keys=[created_by],
-                              backref=db.backref('users_to', lazy='select'))
+                              backref=db.backref('users_to_courses', lazy='select'))
 
       def __repr__(self):
         return f'<Course {self.course_id} - {self.title}>'
@@ -125,7 +125,7 @@ class Purchases(db.Model):
                                 backref=db.backref('courses_to', lazy='select'))
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
     user_to = db.relationship('Users', foreign_keys=[user_id],
-                              backref=db.backref('users_to', lazy='select'))
+                              backref=db.backref('users_to_purchases', lazy='select'))
 
     def __repr__(self):
         return f'<Purchase {self.purchase_id}>'
@@ -146,12 +146,12 @@ class UserPoints(db.Model):
     points = db.Column(db.Integer, unique=False, nullable=False)
     type = db.Column(db.Enum('lesson', 
                              'module', 
-                             'course', name='type'), unique=False, nullable=False, default="course")
+                             'course', name='type_user_points'), unique=False, nullable=False, default="course")
     event_description = db.Column(db.String(255), nullable=True)
     date = db.Column(db.DateTime, unique=False, nullable=False, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
     user_to = db.relationship('Users', foreign_keys=[user_id],
-                              backref=db.backref('users_to', lazy='select'))
+                              backref=db.backref('users_to_points', lazy='select'))
 
     def __repr__(self):
         return f'<UserPoints {self.point_id} - {self.type}>'
@@ -215,7 +215,7 @@ class UserAchievements(db.Model):
     user_to = db.relationship('Users', foreign_keys=[user_id],
                               backref=db.backref('purchases_to', lazy='select'))
     achievement_id = db.Column(db.Integer, db.ForeignKey('achievements.achievement_id'))
-    achievement_to = db.relationship('Archivements', foreign_keys=[achievement_id],
+    achievement_to = db.relationship('Achievements', foreign_keys=[achievement_id],
                               backref=db.backref('achievement_to', lazy='select'))
     
     def __repr__(self):
@@ -234,7 +234,7 @@ class MultimediaResources(db.Model):
                              'image', 
                              'gif', 
                              'animation', 
-                             'document', name='type'), unique=False, nullable=False)
+                             'document', name='type_multimedia_resources'), unique=False, nullable=False)
     url = db.Column(db.String(500), nullable=False)
     duration_seconds = db.Column(db.Integer, nullable=True)
     description = db.Column(db.String(255), nullable=True)
