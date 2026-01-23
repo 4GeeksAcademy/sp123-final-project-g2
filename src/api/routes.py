@@ -99,12 +99,12 @@ def MultimediaResources():
 
     if request.method == 'POST':
         data = request.json
-        row = MultimediaResources(title=data.get('title'),
+        #Verificar que las claves lleguen (todas las que se requieran y no estan todas le devuenlvo al usuario un 400)
+        row = MultimediaResources(title=data.get('title', None),
                                   description=data.get('description'),
                                   file_url=data.get('file_url'),
                                   file_type=data.get('file_type'),
                                   duration=data.get('duration'),
-                                  upload_date=data.get('upload_date'),
                                   is_active=data.get('is_active'))
         db.session.add(row)
         db.session.commit()
@@ -130,6 +130,7 @@ def multimedia_resource(resource_id):
         return response_body, 200
     if request.method == 'PUT':
         data = request.json
+        #Verificar que las claves lleguen (todas las que se requieran y no estan todas le devuenlvo al usuario un 400)
         row.title = data.get('title', row.title)
         row.description = data.get('description', row.description)
         row.file_url = data.get('file_url', row.file_url)
