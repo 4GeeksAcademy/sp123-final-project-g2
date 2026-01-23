@@ -46,18 +46,15 @@ def user(user_id):
     response_body = {}
 
     row = db.session.execute(
-        db.select(Users).where(Users.user_id == user_id)
-    ).scalar()
+        db.select(Users).where(Users.user_id == user_id) ).scalar()
 
     if not row:
         response_body['message'] = 'Usuario no encontrado'
         return response_body, 404
-
-    if request.method == 'GET':
+   if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles del usuario {user_id}'
         return response_body, 200
-
     if request.method == 'PUT':
         data = request.json
 
@@ -89,9 +86,7 @@ def user_points():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(UserPoints)
-        ).scalars().all()
-
+            db.select(UserPoints) ).scalars().all()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de puntos de usuarios'
@@ -105,8 +100,7 @@ def user_points():
             points=data.get('points'),
             type=data.get('type', 'course'),
             event_description=data.get('event_description'),
-            date=data.get('date')
-        )
+            date=data.get('date') )
 
         db.session.add(row)
         db.session.commit()
@@ -122,8 +116,7 @@ def user_point(point_id):
     response_body = {}
 
     row = db.session.execute(
-        db.select(UserPoints).where(UserPoints.point_id == point_id)
-    ).scalar()
+        db.select(UserPoints).where(UserPoints.point_id == point_id)).scalar()
 
     if not row:
         response_body['message'] = 'Registro de puntos no encontrado'
@@ -162,9 +155,7 @@ def achievements():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(Achievements)
-        ).scalars().all()
-
+            db.select(Achievements) ).scalars().all()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de logros'
@@ -194,13 +185,10 @@ def achievement(achievement_id):
     response_body = {}
 
     row = db.session.execute(
-        db.select(Achievements).where(Achievements.achievement_id == achievement_id)
-    ).scalar()
-
+        db.select(Achievements).where(Achievements.achievement_id == achievement_id) ).scalar()
     if not row:
         response_body['message'] = 'Logro no encontrado'
         return response_body, 404
-
     if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles del logro {achievement_id}'
@@ -233,9 +221,7 @@ def user_achievements():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(UserAchievements)
-        ).scalars().all()
-
+            db.select(UserAchievements) ).scalars().all()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de logros obtenidos por usuarios'
@@ -243,12 +229,10 @@ def user_achievements():
 
     if request.method == 'POST':
         data = request.json
-
         row = UserAchievements(
             user_id=data.get('user_id'),
             achievement_id=data.get('achievement_id'),
-            obtained_date=data.get('obtained_date')
-        )
+            obtained_date=data.get('obtained_date') )
 
         db.session.add(row)
         db.session.commit()
@@ -265,19 +249,15 @@ def user_achievement(user_achievement_id):
 
     row = db.session.execute(
         db.select(UserAchievements).where(
-            UserAchievements.user_achievement_id == user_achievement_id
-        )
-    ).scalar()
+            UserAchievements.user_achievement_id == user_achievement_id ) ).scalar()
 
     if not row:
         response_body['message'] = 'Logro de usuario no encontrado'
         return response_body, 404
-
     if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles del logro de usuario {user_achievement_id}'
         return response_body, 200
-
     if request.method == 'PUT':
         data = request.json
 
