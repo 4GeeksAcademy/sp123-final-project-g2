@@ -12,12 +12,36 @@ export const initialStore=()=>{
         title: "Do my homework",
         background: null,
       }
-    ]
+    ],
+    token: '',
+    current_user: {},
+    isLogged:false,
+    alert: {
+      text: '',
+      color: '',
+      display: false
+    }
   }
 }
 
 export default function storeReducer(store, action = {}) {
   switch(action.type){
+
+
+    case "handle_user":
+      return { ...store, current_user: action.payload};
+
+    case "handle_token":
+      return { ...store, token: action.payload};
+    
+    case "handle_alert":
+      return { ...store, alert: action.payload};
+
+
+    case "handle_isLogged":
+      return { ...store, isLogged: action.payload};  
+
+
     case 'set_hello':
       return {
         ...store,

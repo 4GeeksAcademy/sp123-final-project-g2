@@ -19,10 +19,10 @@ CORS(api)  # Allow CORS requests to this API
 def login():
     response_body = {}
     email = request.json.get("email", None)
-    password = request.json.get("password", None)
+    password_hash = request.json.get("password", None)
     # Validar con mi BD
     row = db.session.execute(db.select(Users).where(Users.email == email,
-                                           Users.password == password,
+                                           Users.password_hash == password_hash,
                                            Users.is_active)).scalar()
 
     if not row:
@@ -30,7 +30,7 @@ def login():
         return response_body, 401
     
     user = row.serialize()
-    claims = {'user_id': user['id'],
+    claims = {'user_id': user['user_id'],
               'is_active': user['is_active'],
               'is_admin': user['is_admin']}
     response_body['message'] = 'User logged, ok'
@@ -67,7 +67,7 @@ def users():
     if request.method == 'POST':
         data = request.json
         row = Users(email=data.get('email'),
-                    password_hash=data.get('password'),
+                    password_hash=data.get('password_hash)'),
                     first_name=data.get('first_name'),
                     last_name=data.get('last_name'),
                     role=data.get('role'),

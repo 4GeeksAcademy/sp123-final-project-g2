@@ -9,10 +9,11 @@ export const login = async (dataToSend) => {
     const options = {
         method: "POST",
         headers: {
-            "Content-type": "application/json"
+            "Content-Type": "application/json"
         },
         body: JSON.stringify(dataToSend)
     }
+    
     const response = await fetch(url, options)
     if (!response.ok) {
         console.log('Error', response.status, response.statusText);
@@ -41,4 +42,25 @@ export const protect = async () => {
   console.log("RESPUESTA PROTECTED:", data);
   return data 
 }
+
+export const signup = async (dataToSend) => {
+  const url = `${HOSTFINAL}/api/users`
+  
+  const options = {
+        method: "POST",
+        headers: {
+        "Content-Type": "application/json"
+        },
+        body: JSON.stringify(dataToSend)
+  }
+    
+  const response = await fetch(url, options)
+  if (!response.ok) {
+    const errorText = await response.text()
+   console.error("Error backend:", errorText)
+   return false
+   }
+  const data = await response.json()
+  return data
+  }
     

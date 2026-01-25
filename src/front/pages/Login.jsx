@@ -24,14 +24,7 @@ export const Login = () => {
         }
         console.log('result:', result);
 
-        const response = { ok: true }
-        if (!response.ok) {
-            handleReset()
-            return
-        }
-
-        console.log('result:', result)
-
+       
         // 1. Guardar el token en el localStorage()
         localStorage.setItem('token', result.access_token)
         // 2. Guradar el token en el store (contexto)
