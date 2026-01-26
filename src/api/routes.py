@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, Blueprint
-from api.models import db, Users, Courses,Modules,Purchases
+from api.models import db, Users, Courses, Modules, Purchases
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token
@@ -10,6 +10,9 @@ from flask_jwt_extended import get_jwt_identity
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import get_jwt
 
+
+
+CURRENT_USER_ID = 1
 
 api = Blueprint('api', __name__)
 CORS(api)  # Allow CORS requests to this API
@@ -67,7 +70,7 @@ def users():
     if request.method == 'POST':
         data = request.json
         row = Users(email=data.get('email'),
-                    password_hash=data.get('password_hash)'),
+                    password_hash=data.get('password_hash'),
                     first_name=data.get('first_name'),
                     last_name=data.get('last_name'),
                     role=data.get('role'),
