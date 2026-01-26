@@ -2,7 +2,8 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, Blueprint
-from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons
+from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons, UserPoints, Achievements, UserAchievements
+from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token
 from flask_jwt_extended import get_jwt_identity
@@ -68,13 +69,11 @@ def users():
         return response_body, 200
     if request.method == 'POST':
         data = request.json
-        row = Users(email=data.get('email'),
-                    password_hash=data.get('password_hash'),
-                    first_name=data.get('first_name'),
+        row = Users(first_name=data.get('first_name'),
                     last_name=data.get('last_name'),
                     role=data.get('role'),
                     email=data.get('email'),
-                    password_hash=data.get('password'),
+                    password_hash=data.get('password_hash'),
                     current_points=data.get('current_points'),
                     is_active=True,
                     is_admin=False,
@@ -134,7 +133,7 @@ def user_points():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(UserPoints) ).scalars().all()
+            db.select(UserPoints) ).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de puntos de usuarios'
@@ -203,7 +202,7 @@ def achievements():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(Achievements) ).scalars().all()
+            db.select(Achievements) ).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de logros'
@@ -269,7 +268,7 @@ def user_achievements():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(UserAchievements) ).scalars().all()
+            db.select(UserAchievements) ).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de logros obtenidos por usuarios'
