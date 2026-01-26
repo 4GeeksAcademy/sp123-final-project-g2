@@ -2,13 +2,59 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, Blueprint
-from api.models import db, Users, Courses,Modules,Purchases, MultimediaResources, Lessons
+from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
+from flask_jwt_extended import create_access_token
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt
 
+
+
+CURRENT_USER_ID = 1
 
 api = Blueprint('api', __name__)
 CORS(api)  # Allow CORS requests to this API
+
+
+@api.route("/login", methods=["POST"])
+def login():
+    response_body = {}
+    email = request.json.get("email", None)
+    password_hash = request.json.get("password", None)
+    # Validar con mi BD
+    row = db.session.execute(db.select(Users).where(Users.email == email,
+                                           Users.password_hash == password_hash,
+                                           Users.is_active)).scalar()
+
+    if not row:
+        response_body['message'] = "Bad username or password"
+        return response_body, 401
+    
+    user = row.serialize()
+    claims = {'user_id': user['user_id'],
+              'is_active': user['is_active'],
+              'is_admin': user['is_admin']}
+    response_body['message'] = 'User logged, ok'
+    response_body['results'] = user 
+    response_body['access_token'] = create_access_token(identity=email, additional_claims=claims)
+    return response_body, 200
+
+
+@api.route("/protected", methods=["GET"])
+@jwt_required()  
+def protected():
+    response_body = {} 
+    # Access the identity of the current user with get_jwt_identity
+    current_user = get_jwt_identity()  #devuelve elidentity email
+    additional_claims= get_jwt()  #Los datos adiconales
+    
+    print(current_user)
+    print(additional_claims['user_id'])
+    response_body['message'] = "Autorizado para ver esta información"
+    response_body['results'] = current_user
+    return response_body, 200
 
 
 @api.route('/users', methods=['GET', 'POST'])
@@ -23,7 +69,9 @@ def users():
         return response_body, 200
     if request.method == 'POST':
         data = request.json
-        row = Users(first_name=data.get('first_name'),
+        row = Users(email=data.get('email'),
+                    password_hash=data.get('password_hash'),
+                    first_name=data.get('first_name'),
                     last_name=data.get('last_name'),
                     role=data.get('role'),
                     email=data.get('email'),

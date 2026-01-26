@@ -19,7 +19,7 @@ class Users(db.Model):
     is_active = db.Column(db.Boolean(), default=True, nullable=False)
     is_admin = db.Column(db.Boolean(), default=False, nullable=False)
     registration_date = db.Column(db.DateTime, default=datetime.utcnow) 
-    trial_end_date = db.Column(db.DateTime, nullable=False)   
+    trial_end_date = db.Column(db.DateTime, nullable= True)   
     last_access = db.Column(db.DateTime, nullable=True)          
 
     def __repr__(self):
@@ -34,9 +34,9 @@ class Users(db.Model):
                 "current_points": self.current_points,
                 "is_active": self.is_active,
                 "is_admin": self.is_admin,
-                "registration_date": self.registration_date,
-                "trial_end_date": self.trial_end_date, 
-                "last_access": self.last_access}
+                "registration_date": self.registration_date.isoformat() if self.registration_date else None,
+               "trial_end_date": self.trial_end_date.isoformat() if self.trial_end_date else None,
+               "last_access": self.last_access.isoformat() if self.last_access else None}
 
 
 class Courses(db.Model):
