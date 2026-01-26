@@ -101,7 +101,7 @@ def courses():
                                   price=data.get('price'),
                                   is_active=data.get('is_active'),
                                   creation_date=data.get('creation_date'),
-                                  points=data.get('points'))                                 )
+                                  points=data.get('points'))                                 
         db.session.add(row)
         db.session.commit()
         response_body['results'] = row.serialize()
