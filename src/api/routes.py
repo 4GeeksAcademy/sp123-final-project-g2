@@ -51,7 +51,7 @@ def user(user_id):
     if not row:
         response_body['message'] = 'Usuario no encontrado'
         return response_body, 404
-   if request.method == 'GET':
+    if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles del usuario {user_id}'
         return response_body, 200
