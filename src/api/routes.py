@@ -226,8 +226,20 @@ def course(course_id):
         return response_body, 200
     return response_body, 404
 
-@api.route('/modules', methods=['GET', 'POST'])
-def modules():
+@api.route('/modules-public', methods=['GET'])
+def modules_public():
+    response_body = {}
+
+    if request.method == 'GET':
+        rows = db.session.execute(db.select(Modules)).scalars()
+        results = [row.serialize() for row in rows]
+        response_body['results'] = results
+        response_body['message'] = 'Listado de módulos'
+        return response_body, 200
+    return response_body, 404
+
+@api.route('/modules-private', methods=['GET', 'POST'])
+def modules_private():
     response_body = {}
 
     if request.method == 'GET':
@@ -278,8 +290,21 @@ def module(module_id):
         return response_body, 200
     return response_body, 404
 
-@api.route('/lessons', methods=['GET', 'POST'])
-def lessons():
+@api.route('/lessons-public', methods=['GET'])
+def lessons_public():
+    response_body = {}
+    
+    if request.method == 'GET':
+        rows = db.session.execute(db.select(Lessons)).scalars()
+        results = [row.serialize() for row in rows]
+        response_body['results'] = results
+        response_body['message'] = 'Listado de lecciones'
+        return response_body, 200
+    return response_body, 404
+
+
+@api.route('/lessons-private', methods=['GET', 'POST'])
+def lessons_private():
     response_body = {}
     
     if request.method == 'GET':
