@@ -37,7 +37,7 @@ def login():
               'is_admin': user['is_admin']}
     response_body['message'] = 'User logged, ok'
     response_body['results'] = user 
-    response_body['access_token'] = create_access_token(identity=email, additional_user=user)
+    response_body['access_token'] = create_access_token(identity=email, additional_claims=user)
     return response_body, 200
 
 
