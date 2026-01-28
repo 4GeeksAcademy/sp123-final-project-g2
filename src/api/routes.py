@@ -32,12 +32,12 @@ def login():
         return response_body, 401
     
     user = row.serialize()
-    claims = {'user_id': user['user_id'],
+    user = {'user_id': user['user_id'],
               'is_active': user['is_active'],
               'is_admin': user['is_admin']}
     response_body['message'] = 'User logged, ok'
     response_body['results'] = user 
-    response_body['access_token'] = create_access_token(identity=email, additional_claims=claims)
+    response_body['access_token'] = create_access_token(identity=email, additional_user=user)
     return response_body, 200
 
 
@@ -47,10 +47,10 @@ def protected():
     response_body = {} 
     # Access the identity of the current user with get_jwt_identity
     current_user = get_jwt_identity()  #devuelve elidentity email
-    additional_claims= get_jwt()  #Los datos adiconales
+    additional_user= get_jwt()  #Los datos adiconales
     
     print(current_user)
-    print(additional_claims['user_id'])
+    print(additional_user['user_id'])
     response_body['message'] = "Autorizado para ver esta información"
     response_body['results'] = current_user
     return response_body, 200
@@ -124,207 +124,10 @@ def user(user_id):
 
         response_body['message'] = f'Usuario {user_id} eliminado'
         return response_body, 200
-
-@api.route('/user-points', methods=['GET', 'POST'])
-def user_points():
-    response_body = {}
-
-    if request.method == 'GET':
-        rows = db.session.execute(
-            db.select(UserPoints) ).scalars()
-        results = [row.serialize() for row in rows]
-        response_body['results'] = results
-        response_body['message'] = 'Listado de puntos de usuarios'
-        return response_body, 200
-
-    if request.method == 'POST':
-        data = request.json
-
-        row = UserPoints(
-            user_id=data.get('user_id'),
-            points=data.get('points'),
-            type=data.get('type', 'course'),
-            event_description=data.get('event_description'),
-            date=data.get('date') )
-
-        db.session.add(row)
-        db.session.commit()
-
-        response_body['results'] = row.serialize()
-        response_body['message'] = 'Puntos de usuario creados'
-        return response_body, 201
-
     return response_body, 404
 
-@api.route('/user-points/<int:point_id>', methods=['GET', 'PUT', 'DELETE'])
-def user_point(point_id):
-    response_body = {}
-
-    row = db.session.execute(
-        db.select(UserPoints).where(UserPoints.point_id == point_id)).scalar()
-
-    if not row:
-        response_body['message'] = 'Registro de puntos no encontrado'
-        return response_body, 404
-
-    if request.method == 'GET':
-        response_body['results'] = row.serialize()
-        response_body['message'] = f'Detalles del punto {point_id}'
-        return response_body, 200
-
-    if request.method == 'PUT':
-        data = request.json
-
-        row.points = data.get('points', row.points)
-        row.type = data.get('type', row.type)
-        row.event_description = data.get('event_description', row.event_description)
-        row.date = data.get('date', row.date)
-        row.user_id = data.get('user_id', row.user_id)
-
-        db.session.commit()
-
-        response_body['results'] = row.serialize()
-        response_body['message'] = f'Punto {point_id} actualizado'
-        return response_body, 200
-
-    if request.method == 'DELETE':
-        db.session.delete(row)
-        db.session.commit()
-
-        response_body['message'] = f'Punto {point_id} eliminado'
-        return response_body, 200
-
-@api.route('/achievements', methods=['GET', 'POST'])
-def achievements():
-    response_body = {}
-
-    if request.method == 'GET':
-        rows = db.session.execute(
-            db.select(Achievements) ).scalars()
-        results = [row.serialize() for row in rows]
-        response_body['results'] = results
-        response_body['message'] = 'Listado de logros'
-        return response_body, 200
-
-    if request.method == 'POST':
-        data = request.json
-
-        row = Achievements(
-            name=data.get('name'),
-            description=data.get('description'),
-            required_points=data.get('required_points'),
-            icon=data.get('icon')
-        )
-
-        db.session.add(row)
-        db.session.commit()
-
-        response_body['results'] = row.serialize()
-        response_body['message'] = 'Logro creado'
-        return response_body, 201
-
-    return response_body, 404
-
-@api.route('/achievements/<int:achievement_id>', methods=['GET', 'PUT', 'DELETE'])
-def achievement(achievement_id):
-    response_body = {}
-
-    row = db.session.execute(
-        db.select(Achievements).where(Achievements.achievement_id == achievement_id) ).scalar()
-    if not row:
-        response_body['message'] = 'Logro no encontrado'
-        return response_body, 404
-    if request.method == 'GET':
-        response_body['results'] = row.serialize()
-        response_body['message'] = f'Detalles del logro {achievement_id}'
-        return response_body, 200
-
-    if request.method == 'PUT':
-        data = request.json
-
-        row.name = data.get('name', row.name)
-        row.description = data.get('description', row.description)
-        row.required_points = data.get('required_points', row.required_points)
-        row.icon = data.get('icon', row.icon)
-
-        db.session.commit()
-
-        response_body['results'] = row.serialize()
-        response_body['message'] = f'Logro {achievement_id} actualizado'
-        return response_body, 200
-
-    if request.method == 'DELETE':
-        db.session.delete(row)
-        db.session.commit()
-
-        response_body['message'] = f'Logro {achievement_id} eliminado'
-        return response_body, 200
-
-@api.route('/user-achievements', methods=['GET', 'POST'])
-def user_achievements():
-    response_body = {}
-
-    if request.method == 'GET':
-        rows = db.session.execute(
-            db.select(UserAchievements) ).scalars()
-        results = [row.serialize() for row in rows]
-        response_body['results'] = results
-        response_body['message'] = 'Listado de logros obtenidos por usuarios'
-        return response_body, 200
-
-    if request.method == 'POST':
-        data = request.json
-        row = UserAchievements(
-            user_id=data.get('user_id'),
-            achievement_id=data.get('achievement_id'),
-            obtained_date=data.get('obtained_date') )
-
-        db.session.add(row)
-        db.session.commit()
-
-        response_body['results'] = row.serialize()
-        response_body['message'] = 'Logro asignado al usuario'
-        return response_body, 201
-
-    return response_body, 404
-
-@api.route('/user-achievements/<int:user_achievement_id>', methods=['GET', 'PUT', 'DELETE'])
-def user_achievement(user_achievement_id):
-    response_body = {}
-
-    row = db.session.execute(
-        db.select(UserAchievements).where(
-            UserAchievements.user_achievement_id == user_achievement_id ) ).scalar()
-
-    if not row:
-        response_body['message'] = 'Logro de usuario no encontrado'
-        return response_body, 404
-    if request.method == 'GET':
-        response_body['results'] = row.serialize()
-        response_body['message'] = f'Detalles del logro de usuario {user_achievement_id}'
-        return response_body, 200
-    if request.method == 'PUT':
-        data = request.json
-
-        row.user_id = data.get('user_id', row.user_id)
-        row.achievement_id = data.get('achievement_id', row.achievement_id)
-        row.obtained_date = data.get('obtained_date', row.obtained_date)
-
-        db.session.commit()
-
-        response_body['results'] = row.serialize()
-        response_body['message'] = f'Logro de usuario {user_achievement_id} actualizado'
-        return response_body, 200
-
-    if request.method == 'DELETE':
-        db.session.delete(row)
-        db.session.commit()
-
-        response_body['message'] = f'Logro de usuario {user_achievement_id} eliminado'
-        return response_body, 200
-
-@api.route('/courses', methods=['GET', 'POST'])
-def courses():
+@api.route('/courses-public', methods=['GET'])
+def courses_public():
     response_body = {}
 
     if request.method == 'GET':
@@ -333,21 +136,62 @@ def courses():
         response_body['results'] = results
         response_body['message'] = 'Listado de cursos'
         return response_body, 200
+    return response_body, 404
+
+
+@api.route('/courses-private', methods=['GET', 'POST', 'DELETE'])
+@jwt_required()
+def courses_private():
+    response_body = {}
+    
+    # validacion de rol de usuario
+    user = get_jwt()
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+    # Solo admin y profesor pueden crear cursos
+    if request.method == 'POST':
+        if not user.get('is_admin') and user.get('role') != 'teacher':
+            response_body['message'] = 'No autorizado para crear cursos'
+            return response_body, 403
+    # termina la validacion de rol
+    if request.method == 'GET':
+        rows = db.session.execute(db.select(Courses)).scalars()
+        results = [row.serialize() for row in rows]
+        response_body['results'] = results
+        response_body['message'] = 'Listado de cursos'
+        return response_body, 200
     if request.method == 'POST':
         data = request.json
-        #Verificar que las claves lleguen (todas las que se requieran y no estan todas le devuenlvo al usuario un 400)
-        row = MultimediaResources(title=data.get('title', None),
-                                  description=data.get('description'),
-                                  price=data.get('price'),
-                                  is_active=data.get('is_active'),
-                                  creation_date=data.get('creation_date'),
-                                  points=data.get('points'))                                 
+        # Se valida que el request body no esté vacío
+        if not data:
+            response_body['message'] = 'Request body requerido'
+            return response_body, 400
+        # se valida que las claves requeridas estén en el request body
+        required_fields = ['title', 'price', 'points']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            response_body['message'] = 'Faltan campos requeridos'
+            response_body['missing_fields'] = missing_fields
+            return response_body, 400
+
+        row = Courses(
+            title=data.get('title', None),
+            description=data.get('description'),
+            price=data.get('price'),
+            is_active=data.get('is_active'),
+            creation_date=data.get('creation_date'),
+            points=data.get('points')
+        )
         db.session.add(row)
         db.session.commit()
+
         response_body['results'] = row.serialize()
-        response_body['message'] = 'Multimedia creado'
+        response_body['message'] = 'Curso creado'
         return response_body, 201
+
     return response_body, 404
+
 
 @api.route('/courses/<int:course_id>', methods=['GET', 'PUT', 'DELETE'])
 def course(course_id):
@@ -458,6 +302,7 @@ def lessons():
         response_body['results'] = row.serialize()
         response_body['message'] = 'Lección creada'
         return response_body, 201
+    return response_body, 404
 
 @api.route('/lessons/<int:lesson_id>', methods=['GET', 'PUT', 'DELETE'])
 def lesson(lesson_id):
@@ -491,6 +336,7 @@ def lesson(lesson_id):
         db.session.commit()
         response_body['message'] = f'Lección {lesson_id} eliminada'
         return response_body, 200
+    return response_body, 404
 
 @api.route('/purchases', methods=['GET', 'POST'])
 def purchases():
@@ -550,7 +396,61 @@ def purchase(purchase_id):
         return response_body, 200
     return response_body, 404
 
-#UserPoints
+@api.route('/user-points', methods=['GET', 'POST'])
+def user_points():
+    response_body = {}
+    if request.method == 'GET':
+        rows = db.session.execute(
+        db.select(UserPoints) ).scalars()
+        results = [row.serialize() for row in rows]
+        response_body['results'] = results
+        response_body['message'] = 'Listado de puntos de usuarios'
+        return response_body, 200
+    if request.method == 'POST':
+        data = request.json
+        row = UserPoints(
+            user_id=data.get('user_id'),
+            points=data.get('points'),
+            type=data.get('type', 'course'),
+            event_description=data.get('event_description'),
+            date=data.get('date') )
+        db.session.add(row)
+        db.session.commit()
+        response_body['results'] = row.serialize()
+        response_body['message'] = 'Puntos de usuario creados'
+        return response_body, 201
+    return response_body, 404
+
+@api.route('/user-points/<int:point_id>', methods=['GET', 'PUT', 'DELETE'])
+def user_point(point_id):
+    response_body = {}
+    row = db.session.execute(
+        db.select(UserPoints).where(UserPoints.point_id == point_id)).scalar()
+
+    if not row:
+        response_body['message'] = 'Registro de puntos no encontrado'
+        return response_body, 404
+    if request.method == 'GET':
+        response_body['results'] = row.serialize()
+        response_body['message'] = f'Detalles del punto {point_id}'
+        return response_body, 200
+    if request.method == 'PUT':
+        data = request.json
+        row.points = data.get('points', row.points)
+        row.type = data.get('type', row.type)
+        row.event_description = data.get('event_description', row.event_description)
+        row.date = data.get('date', row.date)
+        row.user_id = data.get('user_id', row.user_id)
+        db.session.commit()
+        response_body['results'] = row.serialize()
+        response_body['message'] = f'Punto {point_id} actualizado'
+        return response_body, 200
+    if request.method == 'DELETE':
+        db.session.delete(row)
+        db.session.commit()
+        response_body['message'] = f'Punto {point_id} eliminado'
+        return response_body, 200
+    return response_body, 404
 
 @api.route('/userprogress', methods=['GET', 'POST'])
 def user_progress():
@@ -562,7 +462,6 @@ def user_progress():
         response_body['results'] = results
         response_body['message'] = 'Listado de progreso de usuarios'
         return response_body, 200
-    
     if request.method == 'POST':
         data = request.json
         rows = Lessons(completed=data.get('completed'),
@@ -573,6 +472,7 @@ def user_progress():
         response_body['results'] = rows.serialize()
         response_body['message'] = 'Progreso de usuario creado'
         return response_body, 201
+    return response_body, 404
     
 @api.route('/userprogress/<int:lesson_id>', methods=['GET', 'PUT', 'DELETE'])
 def user_progress_detail(lesson_id):
@@ -601,10 +501,117 @@ def user_progress_detail(lesson_id):
         db.session.commit()
         response_body['message'] = f'Progreso de usuario {lesson_id} eliminado'
         return response_body, 200
+    return response_body, 404
 
-#Archivements
+@api.route('/achievements', methods=['GET', 'POST'])
+def achievements():
+    response_body = {}
 
-#UserArchivements
+    if request.method == 'GET':
+        rows = db.session.execute(
+            db.select(Achievements) ).scalars()
+        results = [row.serialize() for row in rows]
+        response_body['results'] = results
+        response_body['message'] = 'Listado de logros'
+        return response_body, 200
+
+    if request.method == 'POST':
+        data = request.json
+        row = Achievements(
+            name=data.get('name'),
+            description=data.get('description'),
+            required_points=data.get('required_points'),
+            icon=data.get('icon'))
+        db.session.add(row)
+        db.session.commit()
+        response_body['results'] = row.serialize()
+        response_body['message'] = 'Logro creado'
+        return response_body, 201
+    return response_body, 404
+
+@api.route('/achievements/<int:achievement_id>', methods=['GET', 'PUT', 'DELETE'])
+def achievement(achievement_id):
+    response_body = {}
+
+    row = db.session.execute(
+        db.select(Achievements).where(Achievements.achievement_id == achievement_id) ).scalar()
+    if not row:
+        response_body['message'] = 'Logro no encontrado'
+        return response_body, 404
+    if request.method == 'GET':
+        response_body['results'] = row.serialize()
+        response_body['message'] = f'Detalles del logro {achievement_id}'
+        return response_body, 200
+    if request.method == 'PUT':
+        data = request.json
+        row.name = data.get('name', row.name)
+        row.description = data.get('description', row.description)
+        row.required_points = data.get('required_points', row.required_points)
+        row.icon = data.get('icon', row.icon)
+        db.session.commit()
+        response_body['results'] = row.serialize()
+        response_body['message'] = f'Logro {achievement_id} actualizado'
+        return response_body, 200
+    if request.method == 'DELETE':
+        db.session.delete(row)
+        db.session.commit()
+        response_body['message'] = f'Logro {achievement_id} eliminado'
+        return response_body, 200
+    return response_body, 404
+
+@api.route('/user-achievements', methods=['GET', 'POST'])
+def user_achievements():
+    response_body = {}
+
+    if request.method == 'GET':
+        rows = db.session.execute(
+            db.select(UserAchievements) ).scalars()
+        results = [row.serialize() for row in rows]
+        response_body['results'] = results
+        response_body['message'] = 'Listado de logros obtenidos por usuarios'
+        return response_body, 200
+    if request.method == 'POST':
+        data = request.json
+        row = UserAchievements(
+            user_id=data.get('user_id'),
+            achievement_id=data.get('achievement_id'),
+            obtained_date=data.get('obtained_date') )
+        db.session.add(row)
+        db.session.commit()
+        response_body['results'] = row.serialize()
+        response_body['message'] = 'Logro asignado al usuario'
+        return response_body, 201
+    return response_body, 404
+
+@api.route('/user-achievements/<int:user_achievement_id>', methods=['GET', 'PUT', 'DELETE'])
+def user_achievement(user_achievement_id):
+    response_body = {}
+
+    row = db.session.execute(
+        db.select(UserAchievements).where(
+            UserAchievements.user_achievement_id == user_achievement_id ) ).scalar()
+    if not row:
+        response_body['message'] = 'Logro de usuario no encontrado'
+        return response_body, 404
+    if request.method == 'GET':
+        response_body['results'] = row.serialize()
+        response_body['message'] = f'Detalles del logro de usuario {user_achievement_id}'
+        return response_body, 200
+    if request.method == 'PUT':
+        data = request.json
+        row.user_id = data.get('user_id', row.user_id)
+        row.achievement_id = data.get('achievement_id', row.achievement_id)
+        row.obtained_date = data.get('obtained_date', row.obtained_date)
+        db.session.commit()
+        response_body['results'] = row.serialize()
+        response_body['message'] = f'Logro de usuario {user_achievement_id} actualizado'
+        return response_body, 200
+    if request.method == 'DELETE':
+        db.session.delete(row)
+        db.session.commit()
+        response_body['message'] = f'Logro de usuario {user_achievement_id} eliminado'
+        return response_body, 200
+    return response_body, 404
 
 @api.route('/multimedia-resources', methods=['GET', 'POST'])
 def multimedia_resources():
@@ -616,7 +623,6 @@ def multimedia_resources():
         response_body['results'] = results
         response_body['message'] = 'Listado de recursos multimedia'
         return response_body, 200
-
     if request.method == 'POST':
         data = request.json
         row = MultimediaResources(type=data.get('type'),
@@ -629,7 +635,6 @@ def multimedia_resources():
         response_body['results'] = row.serialize()
         response_body['message'] = 'Recurso multimedia creado'
         return response_body, 201
-
     return response_body, 404
 
 @api.route('/multimedia-resources/<int:resource_id>', methods=['GET', 'PUT', 'DELETE'])
@@ -663,3 +668,6 @@ def multimedia_resource(resource_id):
         db.session.commit()
         response_body['message'] = f'Recurso multimedia {resource_id} eliminado'
         return response_body, 200
+    return response_body, 404
+
+
