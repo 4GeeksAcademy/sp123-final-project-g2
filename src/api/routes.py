@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, Blueprint
-from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons, UserPoints, Achievements, UserAchievements
+from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons, Achievements, UserPoints, UserAchievements
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token
@@ -27,7 +27,6 @@ def login():
     row = db.session.execute(db.select(Users).where(Users.email == email,
                                            Users.password_hash == password_hash,
                                            Users.is_active)).scalar()
-
     if not row:
         response_body['message'] = "Bad username or password"
         return response_body, 401
@@ -69,11 +68,11 @@ def users():
         return response_body, 200
     if request.method == 'POST':
         data = request.json
-        row = Users(first_name=data.get('first_name'),
+        row = Users(email=data.get('email'),
+                    password_hash=data.get('password'),
+                    first_name=data.get('first_name'),
                     last_name=data.get('last_name'),
                     role=data.get('role'),
-                    email=data.get('email'),
-                    password_hash=data.get('password_hash'),
                     current_points=data.get('current_points'),
                     is_active=True,
                     is_admin=False,
@@ -113,7 +112,6 @@ def user(user_id):
         row.is_admin = data.get('is_admin', row.is_admin)
         row.trial_end_date = data.get('trial_end_date', row.trial_end_date)
         row.last_access = data.get('last_access', row.last_access)
-
         db.session.commit()
 
         response_body['results'] = row.serialize()

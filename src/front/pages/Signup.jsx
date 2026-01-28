@@ -8,7 +8,7 @@ export const Signup = () => {
   const [formData, setFormData] =
     useState({
       email: "",
-      password_hash: "",
+      password: "",
       first_name: "",
       last_name: "",
       is_active: true,
@@ -21,16 +21,16 @@ export const Signup = () => {
       [event.target.name]: event.target.value
     })
   }
-
+  const navigate = useNavigate()
   const handleSubmit = async (event) => {
     event.preventDefault()
-
+    console.log("DATA ENVIADA:", formData)
     const result = await signup(formData)
     if (!result) {
       alert("No se pudo crear el usuario")
       return
     }
-    alert(`${result.message}`)
+    alert(`${result.message ||"Usuario creado"}`)
     console.log("Usuario creado:", result)
   }
 

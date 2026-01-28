@@ -18,9 +18,10 @@ export const Login = () => {
         event.preventDefault();
         const dataToSend = { email, password };
         const result = await login(dataToSend) // hacer el login apuntando al back
-        if (!result) {
-            handleReset()
-            return
+        console.log("LOGIN RESULT BACKEND:", result)
+        if (!result || !result.access_token) {
+            handleReset();
+            return;
         }
         console.log('result:', result);
 
@@ -33,6 +34,7 @@ export const Login = () => {
         dispatch({ type: 'handle_user', payload: result.results })
         // 4. Setear en true el isLogged en el store
         dispatch({ type: 'handle_isLogged', payload: true })
+        console.log("LOGIN → isLogged enviado:", true)
 
         // 5. Cambiar el valor del store.alert para dar la bienvenida
         dispatch({
