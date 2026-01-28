@@ -131,7 +131,7 @@ def user_points():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(UserPoints) ).scalars().all()
+            db.select(UserPoints) ).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de puntos de usuarios'
@@ -200,7 +200,7 @@ def achievements():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(Achievements) ).scalars().all()
+            db.select(Achievements) ).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de logros'
@@ -266,7 +266,7 @@ def user_achievements():
 
     if request.method == 'GET':
         rows = db.session.execute(
-            db.select(UserAchievements) ).scalars().all()
+            db.select(UserAchievements) ).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
         response_body['message'] = 'Listado de logros obtenidos por usuarios'
