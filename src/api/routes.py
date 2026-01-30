@@ -805,12 +805,15 @@ def user_achievements():
     response_body = {}
 
     if request.method == 'GET':
-        rows = db.session.execute(
-            db.select(UserAchievements) ).scalars()
+        rows = db.session.execute(db.select(UserAchievements)).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
-        response_body['message'] = 'Listado de logros obtenidos por usuarios'
+        if not results or len(results) == 0:
+            response_body['message'] = 'No hay logros obtenidos por usuarios aún'
+        else:
+            response_body['message'] = 'Listado de logros obtenidos por usuarios'
         return response_body, 200
+
     if request.method == 'POST':
         data = request.json
         row = UserAchievements(

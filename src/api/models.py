@@ -210,23 +210,30 @@ class Achievements(db.Model):
 
 class UserAchievements(db.Model):
     user_achievement_id = db.Column(db.Integer, primary_key=True)
-    obtained_date = db.Column(db.DateTime, unique=False, nullable=False, default=datetime.utcnow)
+    obtained_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
-    user_to = db.relationship('Users', foreign_keys=[user_id],
-                              backref=db.backref('purchases_to', lazy='select'))
+    user_to = db.relationship(
+        'Users',
+        foreign_keys=[user_id],
+        backref=db.backref('user_achievements', lazy='select'))
+
     achievement_id = db.Column(db.Integer, db.ForeignKey('achievements.achievement_id'))
-    achievement_to = db.relationship('Achievements', foreign_keys=[achievement_id],
-                              backref=db.backref('achievement_to', lazy='select'))
-    
+    achievement_to = db.relationship(
+        'Achievements',
+        foreign_keys=[achievement_id],
+        backref=db.backref('user_achievements', lazy='select'))
+
     def __repr__(self):
-        return f'<Achievements: {self.user_achievement_id} - {self.obtained_date}>'
-    
-    def __repr__(self):
-        return {"user_achievement_id": self.user_achievement_id,
-                "user_id": self.user_id,
-                "achievement_id": self.achievement_id,
-                "obtained_date": self.obtained_date}  
-    
+        return f'<UserAchievements {self.user_achievement_id}>'
+
+    def serialize(self):
+        return {
+            "user_achievement_id": self.user_achievement_id,
+            "user_id": self.user_id,
+            "achievement_id": self.achievement_id,
+            "obtained_date": self.obtained_date.isoformat()
+        }
 
 class MultimediaResources(db.Model):
     resource_id = db.Column(db.Integer, primary_key=True)
