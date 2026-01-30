@@ -1,6 +1,7 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
+from datetime import date
 from flask import Flask, request, Blueprint
 from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons, Achievements, UserPoints, UserAchievements
 from api.utils import generate_sitemap, APIException
@@ -73,7 +74,7 @@ def users():
                     password_hash=data.get('password'),
                     first_name=data.get('first_name'),
                     last_name=data.get('last_name'),
-                    role=data.get('role'),
+                    role='demo',
                     current_points=data.get('current_points'),
                     is_active=True,
                     is_admin=False,
@@ -137,7 +138,7 @@ def courses_public():
         response_body['results'] = results
         response_body['message'] = 'Listado de cursos'
         return response_body, 200
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/courses-private', methods=['GET', 'POST'])
 @jwt_required()
@@ -157,6 +158,7 @@ def courses_private():
         response_body['results'] = results
         response_body['message'] = 'Listado de cursos'
         return response_body, 200
+    
     if request.method == 'POST':
         # Solo admin y profesor pueden crear cursos
         if not user['is_admin']:
@@ -175,32 +177,27 @@ def courses_private():
             response_body['message'] = 'Faltan campos requeridos'
             response_body['missing_fields'] = missing_fields
             return response_body, 400
-        row = Courses(
-            title=data.get('title', None),
-            description=data.get('description', 'info no disponible'),
-            price=data.get('price'),
-            is_active=data.get('is_active', True),
-            points=data.get('points'),
-            created_by=user.get('email'))
+        row = Courses(title=data.get('title', None),
+                      description=data.get('description', 'info no disponible'),
+                      price=data.get('price'),
+                      is_active=data.get('is_active', True),
+                      points=data.get('points'),
+                      created_by=user.get('email'))
         db.session.add(row)
         db.session.commit()
 
         response_body['results'] = row.serialize()
         response_body['message'] = 'Curso creado'
-        return response_body, 200    
-    return response_body, 404
+        return response_body, 201   
+    return response_body, 405
 
 @api.route('/courses-private/<int:course_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def course_private(course_id):
     response_body = {}
-
-
     # validacion de rol de usuario
     user = get_jwt()
     print(user)
-
-
     if not user.get('is_active'):
         response_body['message'] = 'Usuario no autorizado'
         return response_body, 403
@@ -209,13 +206,12 @@ def course_private(course_id):
     row = db.session.execute(db.select(Courses).where(Courses.course_id == course_id)).scalar()
     #Se verifica si existe
     if not row:
-        response_body['message'] = 'Curso no encontrado'
+        response_body['message'] = f'Curso {course_id} no encontrado'
         return response_body, 404
 
     if request.method == 'GET':
-        results = row.serialize()
-        response_body['results'] = results
-        response_body['message'] = 'Detalles del curso'
+        response_body['results'] = row.serialize()
+        response_body['message'] = f'Detalles del curso {course_id}'
         return response_body, 200
     
     if request.method == 'PUT':
@@ -226,10 +222,11 @@ def course_private(course_id):
                 return response_body, 403
             
         data = request.json
+        # se valida que las claves requeridas estén en el request body
         if not data:
             response_body['message'] = 'Request body requerido para actualizar'
             return response_body, 400
-        # se valida que las claves requeridas estén en el request body
+        
         row.title = data.get('title', row.title)
         row.description = data.get('description', row.description)
         row.price = data.get('price', row.price)
@@ -238,18 +235,18 @@ def course_private(course_id):
 
         db.session.commit()
         response_body['results'] = row.serialize()
-        response_body['message'] = 'Curso Actualizado'
+        response_body['message'] = f'Curso {course_id} Actualizado'
         return response_body, 200
     
     if request.method == 'DELETE':
         # Solo admin y profesor pueden eliminar cursos
-        if not user['is_admin']:
-            if user['role'] != 'teacher':
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
                 response_body['message'] = 'No eres un Admin ni Teacher, no puedes eliminar cursos'
                 return response_body, 403
         db.session.delete(row)
         db.session.commit()
-        response_body['message'] = 'Curso Eliminado'
+        response_body['message'] = f'Curso {course_id} Eliminado'
         return response_body, 200
     return response_body, 405
 
@@ -263,7 +260,7 @@ def modules_public():
         response_body['results'] = results
         response_body['message'] = 'Listado de módulos'
         return response_body, 200
-    return response_body, 405
+    return response_body, 404
 
 @api.route('/modules-private', methods=['GET', 'POST'])
 @jwt_required()
@@ -285,9 +282,9 @@ def modules_private():
         return response_body, 200
     
     if request.method == 'POST':
-        # Solo admin y profesor pueden crear cursos
-        if not user['is_admin']:
-            if user['role'] != 'teacher':
+        # Solo admin y profesor pueden crear Modulos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
                 response_body['message'] = 'No autorizado para crear módulos, no es admin ni teacher'
                 return response_body, 403
         # Se valida que el request body no esté vacío
@@ -296,52 +293,112 @@ def modules_private():
             response_body['message'] = 'Request body requerido'
             return response_body, 400
         # se valida que las claves requeridas estén en el request body
-        required_fields = ['title', 'order', 'points']
+        required_fields = ['title', 'order', 'points', 'course_id']
         missing_fields = [field for field in required_fields if field not in data]
         if missing_fields:
             response_body['message'] = 'Faltan campos requeridos'
             response_body['missing_fields'] = missing_fields
             return response_body, 400
+        
+        #Se verifica que el curso exista
+        course = db.session.execute(
+            db.select(Courses).where(Courses.id == data.get('course_id'))).scalar()
+        if not course:
+            response_body['message'] = 'Curso no encontrado'
+            return response_body, 400
+        
         row = Modules(title=data.get('title'),
                       order=data.get('order'),
-                      points=data.get('points'))
+                      points=data.get('points'),
+                      course_id=data.get('course_id'),
+                      created_by=user.get('email'))
         db.session.add(row)
         db.session.commit()
+
         response_body['results'] = row.serialize()
         response_body['message'] = 'Módulo creado'
         return response_body, 201
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/modules/<int:module_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def module_private(module_id):
     response_body = {}
-
+    # validacion de rol de usuario
+    user = get_jwt()
+    print(user)
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+    
+    #Se busca el modulo por ID
     row = db.session.execute(
         db.select(Modules).where(Modules.module_id == module_id)).scalar()
-
+    #Se verifica si existe
     if not row:
         response_body['message'] = 'Módulo no encontrado'
         return response_body, 404
+    
     if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles del módulo {module_id}'
         return response_body, 200
+    
     if request.method == 'PUT':
+        # Solo admin y profesor pueden actualizar modulos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No eres un Admin ni Teacher, no puedes actualizar modulos'
+                return response_body, 403
+            
         data = request.json
+        # se valida que las claves requeridas estén en el request body
+        if not data:
+            response_body['message'] = 'Request body requerido para actualizar'
+            return response_body, 400
+        
+        # se verifica si se está actualizando el course_id
+        if 'course_id' in data:
+            course = db.session.execute(
+                db.select(Courses).where(Courses.id == data.get('course_id'))
+            ).scalar()
+            if not course:
+                response_body['message'] = 'Curso no encontrado'
+                return response_body, 400
+        # se verifica si se está actualizando el order
+        target_course_id = data.get('course_id', row.course_id)
+        
+        if 'order' in data:
+            existing_module = db.session.execute(
+                db.select(Modules).where(Modules.course_id == target_course_id,
+                                         Modules.order == data.get('order'),
+                                         Modules.module_id != module_id)).scalar()
+            if existing_module:
+                response_body['message'] = f'Ya existe un módulo con el orden {data.get("order")} en este curso'
+                return response_body, 400
+        
         row.title = data.get('title', row.title)
         row.order = data.get('order', row.order)
         row.points = data.get('points', row.points)
+        row.course_id = data.get('course_id', row.course_id)
+
         db.session.commit()
         response_body['results'] = row.serialize()
         response_body['message'] = f'Módulo {module_id} actualizado'
         return response_body, 200
+    
     if request.method == 'DELETE':
+        # Solo admin y profesor pueden eliminar Modulos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No eres un Admin ni Teacher, no puedes eliminar Modulos'
+                return response_body, 403
+            
         db.session.delete(row)
         db.session.commit()
         response_body['message'] = f'Módulo {module_id} eliminado'
         return response_body, 200
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/lessons-public', methods=['GET'])
 def lessons_public():
@@ -353,12 +410,19 @@ def lessons_public():
         response_body['results'] = results
         response_body['message'] = 'Listado de lecciones'
         return response_body, 200
-    return response_body, 404
-
+    return response_body, 405
 
 @api.route('/lessons-private', methods=['GET', 'POST'])
+@jwt_required()
 def lessons_private():
     response_body = {}
+
+    # validacion de rol de usuario
+    user = get_jwt()
+    print(user)
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
     
     if request.method == 'GET':
         rows = db.session.execute(db.select(Lessons)).scalars()
@@ -368,59 +432,127 @@ def lessons_private():
         return response_body, 200
     
     if request.method == 'POST':
+        # Solo admin y profesor pueden crear lecciones
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No autorizado para crear lecciones, no es admin ni teacher'
+                return response_body, 403
+        # Se valida que el request body no esté vacío
         data = request.json
+        if not data:
+            response_body['message'] = 'Request body requerido'
+            return response_body, 400
+        # se valida que las claves requeridas estén en el request body
+        required_fields = ['title', 'content', 'learning_objective', 'signs_taught', 'order', 'trial_version', 'module_id']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            response_body['message'] = 'Faltan campos requeridos'
+            response_body['missing_fields'] = missing_fields
+            return response_body, 400
         row = Lessons(title=data.get('title'),
                       content=data.get('content'),
                       learning_objective=data.get('learning_objective'),
                       signs_taught=data.get('signs_taught'),
                       order=data.get('order'),
-                      trial_version=data.get('trial_version'))
+                      trial_version=data.get('trial_version'),
+                      module_id = data.get('module_id'),
+                      created_by=user.get('email'))
+                      
         db.session.add(row)
         db.session.commit()
+
         response_body['results'] = row.serialize()
         response_body['message'] = 'Lección creada'
         return response_body, 201
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/lessons/<int:lesson_id>', methods=['GET', 'PUT', 'DELETE'])
+@jwt_required()
 def lesson_private(lesson_id):
     response_body = {}
+        # validacion de rol de usuario
+    user = get_jwt()
+    print(user)
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
     
+    #Se busca el curso por ID
     row = db.session.execute(
-        db.select(Lessons).where
-        (Lessons.lesson_id == lesson_id)).scalar()
-
+        db.select(Lessons).where(Lessons.lesson_id == lesson_id)).scalar()
+    #Se verifica si existe
     if not row:
-        response_body['message'] = 'Lección no encontrada'
+        response_body['message'] = f'Lección {lesson_id} no encontrada'
         return response_body, 404
+
     if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles de la lección {lesson_id}'
         return response_body, 200
+    
     if request.method == 'PUT':
-        data = request.json   
+        # Solo admin y profesor pueden actualizar lecciones
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No eres un Admin ni Teacher, no puedes actualizar lecciones'
+                return response_body, 403
+            
+        data = request.json
+        # se valida que las claves requeridas estén en el request body
+        if not data:
+            response_body['message'] = 'Request body requerido para actualizar'
+            return response_body, 400
+        
+        #se verifica si se está actualizando el module_id
+        if 'module_id' in data and data.get('module_id') != row.module_id:
+            module = db.session.execute(db.select(Modules).where
+                                        (Modules.id == data.get('module_id'))).scalar()
+        if not module:
+            response_body['message'] = 'Módulo no encontrado'
+            return response_body, 400
+          
         row.title = data.get('title', row.title)
         row.content = data.get('content', row.content)
         row.learning_objective = data.get('learning_objective', row.learning_objective)
         row.signs_taught = data.get('signs_taught', row.signs_taught)
         row.order = data.get('order', row.order)
         row.trial_version = data.get('trial_version', row.trial_version)
+        row.module_id = data.get('module_id', row.module_id)
+
         db.session.commit()
         response_body['results'] = row.serialize()
         response_body['message'] = f'Lección {lesson_id} actualizada'
         return response_body, 200
+    
     if request.method == 'DELETE':
+        # Solo admin y profesor pueden eliminar lecciones
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No eres un Admin ni Teacher, no puedes eliminar lecciones'
+                return response_body, 403
         db.session.delete(row)
         db.session.commit()
         response_body['message'] = f'Lección {lesson_id} eliminada'
         return response_body, 200
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/purchases', methods=['GET', 'POST'])
+@jwt_required()
 def purchases():
     response_body = {}
 
+    # validacion de rol de usuario
+    user = get_jwt()
+    print(user)
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+    
     if request.method == 'GET':
+        # Solo el admin puede ver todas las compras realizadas 
+        if not user.get('is_admin'):
+            response_body['message'] = 'No autorizado para ver compras, no es admin'
+            return response_body, 403
         rows = db.session.execute(db.select(Purchases)).scalars()
         results = [row.serialize() for row in rows]
         response_body['results'] = results
@@ -428,19 +560,50 @@ def purchases():
         return response_body, 200
 
     if request.method == 'POST':
+        #Cualquer usuario activo puede crear una compra para activar un curso o ampliar su suscripción
+        # Se valida que el request body no esté vacío
         data = request.json
-        row = Purchases(purchase_date=data.get('purchase_date'),
+        if not data:
+            response_body['message'] = 'Request body requerido'
+            return response_body, 400
+                # se valida que las claves requeridas estén en el request body
+        required_fields = ['price', 'total', 'status', 'start_date', 'course_id', 'user_id', 'purchase_date']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            response_body['message'] = 'Faltan campos requeridos'
+            response_body['missing_fields'] = missing_fields
+            return response_body, 400
+        #Se verifica que el curso exista o esta activo
+        course = db.session.execute(db.select(Courses).where
+                                   (Courses.id == data.get('course_id'),
+                                    Courses.is_active == True)).scalar()
+        if not course:
+            response_body['message'] = 'Curso no encontrado'
+            return response_body, 400
+        #Validar que el usuario exista
+    
+        user_exists = db.session.execute(
+            db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
+        
+        if not user_exists:
+            response_body['message'] = 'Usuario no encontrado'
+            return response_body, 400
+
+        row = Purchases(purchase_date=data.get('purchase_date') or date.today(),
                         price=data.get('price'),
                         total=data.get('total'),
                         status=data.get('status'),
-                        start_date=data.get('start_date'))
+                        start_date=data.get('start_date'),
+                        course_id=data.get('course_id'),
+                        user_id=data.get('user_id'),
+                        created_by=user.get('email'))
         db.session.add(row)
         db.session.commit()
 
         response_body['results'] = row.serialize()
         response_body['message'] = 'Compra creada'
         return response_body, 201
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/purchases/<int:purchase_id>', methods=['GET', 'PUT', 'DELETE'])
 def purchase(purchase_id):
