@@ -694,26 +694,69 @@ def user_point(point_id):
     return response_body, 404
 
 @api.route('/userprogress', methods=['GET', 'POST'])
+@jwt_required()
 def user_progress():
-    response_body = {}
+    # Información del token
+    user_token_data = get_jwt()
+    current_user_id = get_jwt_identity()
 
+    # Validación de Usuario Activo
+    if not user_token_data.get('is_active'):
+        return {"message": "Usuario no autorizado o inactivo"}, 403
+
+    #  MÉTODO GET: Listado de progreso 
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Users)).scalars()
-        results = [row.serialize() for row in rows]
-        response_body['results'] = results
-        response_body['message'] = 'Listado de progreso de usuarios'
-        return response_body, 200
+        # 1. Si es Admin o Teacher, ve TODO el progreso
+        if user_token_data.get('is_admin') or user_token_data.get('role') == 'teacher':
+            rows = db.session.execute(db.select(UserProgress)).scalars().all()
+            message = "Listado general de progreso de todos los usuarios"
+        
+        # 2. Si es un usuario normal, solo ve SU PROPIO progreso
+        else:
+            rows = db.session.execute(
+                db.select(UserProgress).where(UserProgress.user_id == current_user_id)
+            ).scalars().all()
+            message = f"Listado de progreso del usuario {current_user_id}"
+
+        return {
+            "results": [row.serialize() for row in rows],
+            "message": message
+        }, 200
+
+    #  MÉTODO POST: Crear nuevo progreso 
     if request.method == 'POST':
         data = request.json
-        rows = Lessons(completed=data.get('completed'),
-                       start_date=data.get('start_date'),
-                       completion_date=data.get('completion_date'))
-        db.session.add(rows)
+        
+        if not data:
+            return {"message": "Request body requerido para crear progreso"}, 400
+            
+        required_fields = ['completed', 'start_date', 'user_id']
+        if not all(field in data for field in required_fields):
+            return {"message": "Los campos 'completed', 'start_date' y 'user_id' son obligatorios"}, 400
+
+        # Validación de Rol para POST: Solo Admin, Teacher o el propio usuario
+        target_user_id = data.get('user_id')
+        if not user_token_data.get('is_admin') and user_token_data.get('role') != 'teacher' and current_user_id != target_user_id:
+            return {"message": "No tienes permisos para crear progreso para este usuario"}, 403
+
+        # Creación del registro
+        new_progress = UserProgress(
+            user_id=target_user_id,
+            completed=data.get('completed'),
+            start_date=data.get('start_date'),
+            completion_date=data.get('completion_date') )
+        
+        db.session.add(new_progress)
         db.session.commit()
-        response_body['results'] = rows.serialize()
-        response_body['message'] = 'Progreso de usuario creado'
-        return response_body, 201
-    return response_body, 404
+        
+        return {
+            "results": new_progress.serialize(),
+            "message": "Progreso de usuario creado correctamente"
+        }, 201
+
+    return {"message": "Método no permitido"}, 405
+
+
     
 @api.route('/userprogress/<int:lesson_id>', methods=['GET', 'PUT', 'DELETE'])
 def user_progress_detail(lesson_id):
