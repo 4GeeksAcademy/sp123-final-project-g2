@@ -536,9 +536,41 @@ def lesson_private(lesson_id):
         return response_body, 200
     return response_body, 405
 
-@api.route('/purchases', methods=['GET', 'POST'])
+@api.route('/purchases-public', methods=['POST'])
+def purchases_public():
+    response_body = {}
+
+    # Validar datos recibidos
+    data = request.json
+    if not data:
+        response_body['message'] = 'Request body requerido'
+        return response_body, 400
+    
+    # Verificar que se envíe el curso
+    if 'course_id' not in data:
+        response_body['message'] = 'Se requiere el ID del curso (course_id)'
+        return response_body, 400
+    
+    # Validar que el curso exista y esté activo
+    course = db.session.execute(db.select(Courses).where(
+        Courses.course_id == data.get('course_id'),
+        Courses.is_active == True)).scalar()
+    
+    if not course:
+        response_body['message'] = 'Curso no encontrado o inactivo'
+        return response_body, 404
+    
+    # Respuesta: necesita registrarse
+    response_body['message'] = 'Para realizar compras, debe registrarse como usuario'
+    response_body['action_required'] = 'registration'
+    response_body['registration_url'] = '/api/register' 
+    response_body['course_id'] = data['course_id']
+    
+    return response_body, 200                                                                                                                                                                                                                                                                                                                                               
+
+@api.route('/purchases-private', methods=['GET', 'POST'])
 @jwt_required()
-def purchases():
+def purchases_private():
     response_body = {}
 
     # validacion de rol de usuario
@@ -547,7 +579,7 @@ def purchases():
     if not user.get('is_active'):
         response_body['message'] = 'Usuario no autorizado'
         return response_body, 403
-    
+
     if request.method == 'GET':
         # Solo el admin puede ver todas las compras realizadas 
         if not user.get('is_admin'):
@@ -555,40 +587,53 @@ def purchases():
             return response_body, 403
         rows = db.session.execute(db.select(Purchases)).scalars()
         results = [row.serialize() for row in rows]
-        response_body['results'] = results
-        response_body['message'] = 'Listado de compras'
+        response_body['results'] = results        
+        # Valida si hay resultados o no 
+        if not results:
+            response_body['message'] = 'No hay compras registradas aún'
+        else:
+            response_body['message'] = 'Listado de compras'      
         return response_body, 200
 
     if request.method == 'POST':
-        #Cualquer usuario activo puede crear una compra para activar un curso o ampliar su suscripción
+        # Cualquier usuario activo puede crear una compra para activar un curso o ampliar su suscripción
         # Se valida que el request body no esté vacío
         data = request.json
+
         if not data:
             response_body['message'] = 'Request body requerido'
             return response_body, 400
-                # se valida que las claves requeridas estén en el request body
+        # se valida que las claves requeridas estén en el request body
         required_fields = ['price', 'total', 'status', 'start_date', 'course_id', 'user_id', 'purchase_date']
         missing_fields = [field for field in required_fields if field not in data]
         if missing_fields:
             response_body['message'] = 'Faltan campos requeridos'
             response_body['missing_fields'] = missing_fields
             return response_body, 400
-        #Se verifica que el curso exista o esta activo
-        course = db.session.execute(db.select(Courses).where
-                                   (Courses.id == data.get('course_id'),
-                                    Courses.is_active == True)).scalar()
+        # Se verifica que el curso exista o esté activo
+        course = db.session.execute(db.select(Courses).where(
+            Courses.course_id == data.get('course_id'),
+            Courses.is_active == True)).scalar()
         if not course:
             response_body['message'] = 'Curso no encontrado'
             return response_body, 400
-        #Validar que el usuario exista
-    
-        user_exists = db.session.execute(
-            db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
-        
+        # Validar que el usuario exista
+        user_exists = db.session.execute(db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
+        # Validar que el usuario solo pueda crear compras para sí mismo
+        jwt_user_id = user.get('user_id')
+        request_user_id = data.get('user_id')
         if not user_exists:
             response_body['message'] = 'Usuario no encontrado'
             return response_body, 400
+        
+        if not jwt_user_id:
+            response_body['message'] = 'Token inválido'
+            return response_body, 400
 
+        if str(jwt_user_id) != str(request_user_id):
+            response_body['message'] = 'No puede crear compras para otros usuarios'
+            return response_body, 403  
+        
         row = Purchases(purchase_date=data.get('purchase_date') or date.today(),
                         price=data.get('price'),
                         total=data.get('total'),
@@ -606,15 +651,25 @@ def purchases():
     return response_body, 405
 
 @api.route('/purchases/<int:purchase_id>', methods=['GET', 'PUT', 'DELETE'])
+@jwt_required()
 def purchase(purchase_id):
     response_body = {}
 
+    # validacion de rol de usuario
+    user = get_jwt()
+    print(user)
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+    
     row = db.session.execute(
         db.select(Purchases).where(Purchases.purchase_id == purchase_id)).scalar()
 
+    #Se verifica si existe
     if not row:
-        response_body['message'] = 'Compra no encontrada'
+        response_body['message'] = f'Compra {purchase_id} no encontrada'
         return response_body, 404
+    
     if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles de la compra {purchase_id}'
@@ -631,6 +686,10 @@ def purchase(purchase_id):
         response_body['message'] = f'Compra {purchase_id} actualizada'
         return response_body, 200
     if request.method == 'DELETE':
+        # Solo admin puede ver, modificar o eliminar compras
+        if not user.get('is_admin'):
+            response_body['message'] = 'No autorizado para ver o modificar compras, no es admin'
+            return response_body, 403
         db.session.delete(row)
         db.session.commit()
         response_body['message'] = f'Compra {purchase_id} eliminada'
