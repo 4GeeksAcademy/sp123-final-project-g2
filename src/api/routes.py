@@ -610,6 +610,13 @@ def purchases_private():
             response_body['message'] = 'Faltan campos requeridos'
             response_body['missing_fields'] = missing_fields
             return response_body, 400
+        # Se valida que el status sea válido
+        if 'status' in data:
+            valid_statuses = ['pending', 'completed', 'canceled']
+            if data.get('status') not in valid_statuses:
+                response_body['message'] = f'Status inválido. Valores permitidos: {valid_statuses}'
+                return response_body, 400
+
         # Se verifica que el curso exista o esté activo
         course = db.session.execute(db.select(Courses).where(
             Courses.course_id == data.get('course_id'),
@@ -657,7 +664,7 @@ def purchase(purchase_id):
 
     # validacion de rol de usuario
     user = get_jwt()
-    print(user)
+
     if not user.get('is_active'):
         response_body['message'] = 'Usuario no autorizado'
         return response_body, 403
@@ -671,30 +678,56 @@ def purchase(purchase_id):
         return response_body, 404
     
     if request.method == 'GET':
+        # Solo admin puede ver cualquier compra
+        if not user.get('is_admin'):
+            # solo el usuario dueño de la compra puede verla
+            jwt_user_id = user.get('user_id')
+            if str(jwt_user_id) != str(row.user_id):
+                response_body['message'] = 'No autorizado para ver esta compra'
+                return response_body, 403
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles de la compra {purchase_id}'
         return response_body, 200
+    
     if request.method == 'PUT':
+        if not user.get('is_admin'):
+            response_body['message'] = 'Solo administradores pueden modificar compras'
+            return response_body, 403
+        
         data = request.json
-        row.purchase_date = data.get('purchase_date', row.purchase_date)
-        row.price = data.get('price', row.price)
-        row.total = data.get('total', row.total)
+        # se valida que las claves requeridas estén en el request body
+        if not data:
+            response_body['message'] = 'Request body requerido para actualizar'
+            return response_body, 400
+        
+        campos_inmutables = ['price', 'total', 'course_id', 'purchase_date', 'created_by']
+        for campo in campos_inmutables:
+            if campo in data:
+                response_body['message'] = f'El campo {campo} no puede ser modificado'
+                return response_body, 400
+        
+        if 'status' in data:
+            valid_statuses = ['pending', 'completed', 'canceled']
+            if data.get('status') not in valid_statuses:
+                response_body['message'] = f'Status inválido. Valores permitidos: {valid_statuses}'
+                return response_body, 400
+        
+        if 'user_id' in data:
+            # Validar que el nuevo usuario exista
+            new_user = db.session.execute(db.select(Users).where(Users.user_id == data['user_id'])).scalar()
+            if not new_user:
+                response_body['message'] = 'Usuario no encontrado'
+                return response_body, 400
+            row.user_id = data.get('user_id')
+
         row.status = data.get('status', row.status)
         row.start_date = data.get('start_date', row.start_date)
+
         db.session.commit()
         response_body['results'] = row.serialize()
         response_body['message'] = f'Compra {purchase_id} actualizada'
         return response_body, 200
-    if request.method == 'DELETE':
-        # Solo admin puede ver, modificar o eliminar compras
-        if not user.get('is_admin'):
-            response_body['message'] = 'No autorizado para ver o modificar compras, no es admin'
-            return response_body, 403
-        db.session.delete(row)
-        db.session.commit()
-        response_body['message'] = f'Compra {purchase_id} eliminada'
-        return response_body, 200
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/user-points', methods=['GET', 'POST'])
 def user_points():
