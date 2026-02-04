@@ -696,9 +696,8 @@ def user_point(point_id):
 @api.route('/userprogress', methods=['GET', 'POST', 'DELETE'])
 @jwt_required()
 def userprogress():
+    #Usuario activo
     response_body = {}
-
-    # Validación token / usuario activo
     user = get_jwt()
     if not user.get('is_active'):
         response_body['message'] = 'Usuario no autorizado'
@@ -707,129 +706,80 @@ def userprogress():
     current_user_id = user.get('user_id')
     role = user.get('role')
     is_admin = user.get('is_admin')
-
-  # Método GET
-    
+#Método GET
     if request.method == 'GET':
-
-        # Admin y teacher ven todo
         if is_admin or role == 'teacher':
             rows = db.session.execute(db.select(UserProgress)).scalars().all()
-            response_body['results'] = [row.serialize() for row in rows]
+            response_body['results'] = [fix_datetime(r.serialize()) for r in rows]
             response_body['message'] = 'Listado general de progreso de todos los usuarios'
             return response_body, 200
-
-        # Alumno ve solo su progreso
-        rows = db.session.execute(
-            db.select(UserProgress).where(UserProgress.user_id == current_user_id)).scalars().all()
-
-        response_body['results'] = [row.serialize() for row in rows]
+        rows = db.session.execute(db.select(UserProgress).where(UserProgress.user_id == current_user_id)).scalars().all()
+        response_body['results'] = [fix_datetime(r.serialize()) for r in rows]
         response_body['message'] = f'Listado de progreso del usuario {current_user_id}'
         return response_body, 200
-
-    # POST
-    
+#Método Post 
     if request.method == 'POST':
         data = request.json
         if not data:
             response_body['message'] = 'Request body requerido'
             return response_body, 400
-
         required_fields = ['lesson_id', 'user_id', 'completed', 'start_date']
-        missing_fields = [field for field in required_fields if field not in data]
+        missing_fields = [f for f in required_fields if f not in data]
         if missing_fields:
             response_body['message'] = 'Faltan campos requeridos'
             response_body['missing_fields'] = missing_fields
             return response_body, 400
-
         target_user_id = data.get('user_id')
-
-        # Alumno solo puede crear para sí mismo
-        if not is_admin and role != 'teacher':
-            if target_user_id != current_user_id:
-                response_body['message'] = 'No autorizado para crear progreso de otro usuario'
-                return response_body, 403
-
-        # Validación 
+        if not is_admin and role != 'teacher' and target_user_id != current_user_id:
+            response_body['message'] = 'No autorizado para crear progreso de otro usuario'
+            return response_body, 403
         if not isinstance(data.get('completed'), bool):
-            response_body['message'] = "completed debe ser boolean (true/false)"
+            response_body['message'] = 'completed debe ser boolean (true/false)'
             return response_body, 400
-
-        #  evitar duplicados: mismo user_id + lesson_id
-        existing = db.session.execute(
-            db.select(UserProgress).where(
-                UserProgress.user_id == target_user_id,
-                UserProgress.lesson_id == data.get('lesson_id')) ).scalar()
-
+        existing = db.session.execute(db.select(UserProgress).where(UserProgress.user_id == target_user_id, UserProgress.lesson_id == data.get('lesson_id'))).scalar()
         if existing:
             response_body['message'] = 'Ya existe un progreso para este usuario en esta lección'
-            response_body['results'] = existing.serialize()
+            response_body['results'] = fix_datetime(existing.serialize())
             return response_body, 400
-
-        # Crear progreso
-        row = UserProgress(
-            user_id=target_user_id,
-            lesson_id=data.get('lesson_id'),
-            completed=data.get('completed'),
-            start_date=data.get('start_date'),
-            completion_date=data.get('completion_date'))
-
+        row = UserProgress(user_id=target_user_id, lesson_id=data.get('lesson_id'), completed=data.get('completed'), start_date=data.get('start_date'), completion_date=data.get('completion_date'))
         db.session.add(row)
         db.session.commit()
-
-        response_body['results'] = row.serialize()
+        response_body['results'] = fix_datetime(row.serialize())
         response_body['message'] = 'Progreso creado'
         return response_body, 201
 
-     #  Método DELETE
-   
     if request.method == 'DELETE':
-
-        # Solo admin o teacher pueden borrar progreso
         if not is_admin and role != 'teacher':
             response_body['message'] = 'No autorizado para eliminar progreso'
             return response_body, 403
-
         data = request.json
         if not data:
             response_body['message'] = 'Request body requerido para eliminar progreso'
             return response_body, 400
-
         required_fields = ['user_id', 'lesson_id']
-        missing_fields = [field for field in required_fields if field not in data]
+        missing_fields = [f for f in required_fields if f not in data]
         if missing_fields:
             response_body['message'] = 'Faltan campos requeridos'
             response_body['missing_fields'] = missing_fields
             return response_body, 400
-
-        row = db.session.execute(
-            db.select(UserProgress).where(
-                UserProgress.user_id == data.get('user_id'),
-                UserProgress.lesson_id == data.get('lesson_id') )).scalar()
-
+        row = db.session.execute(db.select(UserProgress).where(UserProgress.user_id == data.get('user_id'), UserProgress.lesson_id == data.get('lesson_id'))).scalar()
         if not row:
             response_body['message'] = 'Progreso no encontrado'
             return response_body, 404
-
         db.session.delete(row)
         db.session.commit()
-
         response_body['message'] = 'Progreso eliminado'
         return response_body, 200
 
     return response_body, 405
 
 
-
-
 @api.route('/userprogress/<int:lesson_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def userprogress_detail(lesson_id):
     response_body = {}
-
     user = get_jwt()
 
-    # Usuario activo
     if not user.get('is_active'):
         response_body['message'] = 'Usuario no autorizado'
         return response_body, 403
@@ -838,41 +788,29 @@ def userprogress_detail(lesson_id):
     role = user.get('role')
     is_admin = user.get('is_admin')
 
-    # Buscar progreso
     row = db.session.execute(
         db.select(UserProgress).where(
             UserProgress.lesson_id == lesson_id,
-            UserProgress.user_id == current_user_id ) ).scalar()
+            UserProgress.user_id == current_user_id )).scalar()
 
     if not row:
         response_body['message'] = 'Progreso de usuario no encontrado'
         return response_body, 404
 
-     # GET
-    
+    #  GET
     if request.method == 'GET':
-
-        result = fix_datetime(row.serialize())
-
-        response_body['results'] = result
+        response_body['results'] = fix_datetime(row.serialize())
         response_body['message'] = f'Detalles del progreso para lesson_id {lesson_id}'
-
         return response_body, 200
 
-    # Alumno NO puede modificar
-    if role == 'alumno':
-        response_body['message'] = 'Acceso denegado: Los alumnos no pueden modificar o eliminar progresos'
+    # Bloqueo alumnos
+    if role == 'alumno' or (not is_admin and role != 'teacher'):
+        response_body['message'] = 'Acceso denegado: No tienes permisos para modificar o eliminar progresos'
         return response_body, 403
 
-    if not is_admin and role != 'teacher':
-        response_body['message'] = 'Rol no autorizado'
-        return response_body, 403
-
-   # Método  PUT
-   
+    #  PUT
     if request.method == 'PUT':
         data = request.json
-
         if not data:
             response_body['message'] = 'No se enviaron datos para actualizar'
             return response_body, 400
@@ -887,79 +825,20 @@ def userprogress_detail(lesson_id):
 
         db.session.commit()
 
-        result = fix_datetime(row.serialize())
-
-        response_body['results'] = result
+        response_body['results'] = fix_datetime(row.serialize())
         response_body['message'] = f'Progreso actualizado para lesson_id {lesson_id}'
-
         return response_body, 200
 
-   # Método DELETE
-   
+    # DELETE
     if request.method == 'DELETE':
         db.session.delete(row)
         db.session.commit()
-
         response_body['message'] = f'Progreso eliminado para lesson_id {lesson_id}'
-
         return response_body, 200
 
     return response_body, 405
 
-    
-    
-@api.route('/achievements', methods=['GET', 'POST'])
-def achievements():
-    response_body = {}
-
-    # Método GET
-    
-    if request.method == 'GET':
-
-        rows = db.session.execute( db.select(Achievements) ).scalars().all()
-
-        response_body['results'] = [row.serialize() for row in rows]
-        response_body['message'] = 'Listado de logros'
-
-        return response_body, 200
-
-    # Método POST
-  
-    if request.method == 'POST':
-
-        data = request.json
-
-        if not data:
-            response_body['message'] = 'Request body requerido'
-            return response_body, 400
-
-        required_fields = ['name', 'description', 'required_points']
-        missing_fields = [f for f in required_fields if f not in data]
-
-        if missing_fields:
-            response_body['message'] = 'Faltan campos requeridos'
-            response_body['missing_fields'] = missing_fields
-            return response_body, 400
-
-        # VALIDACIÓN 
-        if not isinstance(data.get('required_points'), int):
-            response_body['message'] = 'required_points debe ser un número entero'
-            return response_body, 400
-
-        row = Achievements(
-            name=data.get('name'),
-            description=data.get('description'),
-            required_points=data.get('required_points') )
-
-        db.session.add(row)
-        db.session.commit()
-
-        response_body['results'] = row.serialize()
-        response_body['message'] = 'Logro creado'
-
-        return response_body, 201
-
-    
+       
 
 @api.route('/achievements/<int:achievement_id>', methods=['GET', 'PUT', 'DELETE'])
 def achievement(achievement_id):
@@ -1019,11 +898,10 @@ def achievement(achievement_id):
     if request.method == 'DELETE':
         db.session.delete(row)
         db.session.commit()
-
         response_body['message'] = f'Logro {achievement_id} eliminado'
         return response_body, 200
 
-    return response_body, 405
+   
 
 @api.route('/user-achievements', methods=['GET', 'POST'])
 def user_achievements():
@@ -1056,8 +934,7 @@ def user_achievements():
             response_body['message'] = 'No hay logros obtenidos por usuarios aún'
         else:
             response_body['message'] = 'Listado de logros obtenidos por usuarios'
-
-        return response_body, 200
+            return response_body, 200
 
     # POST 
     if request.method == 'POST':
