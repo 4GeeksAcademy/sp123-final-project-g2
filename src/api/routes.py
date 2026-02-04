@@ -708,8 +708,7 @@ def userprogress():
     role = user.get('role')
     is_admin = user.get('is_admin')
 
- 
-    # Método GET
+  # Método GET
     
     if request.method == 'GET':
 
@@ -751,12 +750,12 @@ def userprogress():
                 response_body['message'] = 'No autorizado para crear progreso de otro usuario'
                 return response_body, 403
 
-        # Validación boolean
+        # Validación 
         if not isinstance(data.get('completed'), bool):
             response_body['message'] = "completed debe ser boolean (true/false)"
             return response_body, 400
 
-        # (Recomendado) evitar duplicados: mismo user_id + lesson_id
+        #  evitar duplicados: mismo user_id + lesson_id
         existing = db.session.execute(
             db.select(UserProgress).where(
                 UserProgress.user_id == target_user_id,
