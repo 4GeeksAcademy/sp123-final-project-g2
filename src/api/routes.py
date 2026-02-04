@@ -759,24 +759,22 @@ def my_points():
     total_points = db.session.execute(db.select(func.sum(UserPoints.points))
                                       .where(UserPoints.user_id == jwt_user_id)).scalar() or 0
 
-    # se obtiene la información básica del usuario para incluir en la respuesta
+    # Se obtiene la información básica del usuario
     user_info = db.session.execute(db.select(Users).where(Users.user_id == jwt_user_id)).scalar()
 
-    results = float(total_points) if total_points else 0
-    # se construye la respuesta con el resumen de puntos del usuario
     response_body['message'] = 'Resumen de puntos del usuario'
-    response_body['user_id'] = jwt_user_id
-    response_body['total_points'] = results
-    response_body['points_details'] = points_details
-    response_body['points_count'] = len(points_details)
-    
-    if user_info:
-        response_body['user_info'] = {
+    response_body['results'] = {
+        'user_id': jwt_user_id,
+        'total_points': float(total_points) if total_points else 0,
+        'points_details': points_details,
+        'points_count': len(points_details),
+        'user_info': {
             'full_name': getattr(user_info, 'full_name', ''),
             'email': getattr(user_info, 'email', '')
-        }
-        return response_body, 200
-    return response_body, 405
+        } if user_info else {}
+    }
+    
+    return response_body, 200
 
 @api.route('/user-points', methods=['GET', 'POST'])
 @jwt_required()
