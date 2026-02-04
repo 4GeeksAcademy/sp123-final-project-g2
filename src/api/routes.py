@@ -3,6 +3,7 @@ This module takes care of starting the API Server, Loading the DB and Adding the
 """
 from datetime import date, datetime
 from flask import Flask, request, Blueprint
+from sqlalchemy import func
 from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons, Achievements, UserPoints, UserAchievements
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
@@ -555,9 +556,41 @@ def lesson_private(lesson_id):
     return response_body, 405
 
 
-@api.route('/purchases', methods=['GET', 'POST'])
+@api.route('/purchases-public', methods=['POST'])
+def purchases_public():
+    response_body = {}
+
+    # Validar datos recibidos
+    data = request.json
+    if not data:
+        response_body['message'] = 'Request body requerido'
+        return response_body, 400
+    
+    # Verificar que se envíe el curso
+    if 'course_id' not in data:
+        response_body['message'] = 'Se requiere el ID del curso (course_id)'
+        return response_body, 400
+    
+    # Validar que el curso exista y esté activo
+    course = db.session.execute(db.select(Courses).where(
+        Courses.course_id == data.get('course_id'),
+        Courses.is_active == True)).scalar()
+    
+    if not course:
+        response_body['message'] = 'Curso no encontrado o inactivo'
+        return response_body, 404
+    
+    # Respuesta: necesita registrarse
+    response_body['message'] = 'Para realizar compras, debe registrarse como usuario'
+    response_body['action_required'] = 'registration'
+    response_body['registration_url'] = '/api/register' 
+    response_body['course_id'] = data['course_id']
+    
+    return response_body, 200                                                                                                                                                                                                                                                                                                                                               
+
+@api.route('/purchases-private', methods=['GET', 'POST'])
 @jwt_required()
-def purchases():
+def purchases_private():
     response_body = {}
 
     # validacion de rol de usuario
@@ -574,42 +607,60 @@ def purchases():
             return response_body, 403
         rows = db.session.execute(db.select(Purchases)).scalars()
         results = [row.serialize() for row in rows]
-        response_body['results'] = results
-        response_body['message'] = 'Listado de compras'
+        response_body['results'] = results        
+        # Valida si hay resultados o no 
+        if not results:
+            response_body['message'] = 'No hay compras registradas aún'
+        else:
+            response_body['message'] = 'Listado de compras'      
         return response_body, 200
 
     if request.method == 'POST':
-        # Cualquer usuario activo puede crear una compra para activar un curso o ampliar su suscripción
+        # Cualquier usuario activo puede crear una compra para activar un curso o ampliar su suscripción
         # Se valida que el request body no esté vacío
         data = request.json
+
         if not data:
             response_body['message'] = 'Request body requerido'
             return response_body, 400
-                # se valida que las claves requeridas estén en el request body
-        required_fields = ['price', 'total', 'status',
-            'start_date', 'course_id', 'user_id', 'purchase_date']
-        missing_fields = [
-            field for field in required_fields if field not in data]
+        # se valida que las claves requeridas estén en el request body
+        required_fields = ['price', 'total', 'status', 'start_date', 'course_id', 'user_id', 'purchase_date']
+        missing_fields = [field for field in required_fields if field not in data]
         if missing_fields:
             response_body['message'] = 'Faltan campos requeridos'
             response_body['missing_fields'] = missing_fields
             return response_body, 400
-        # Se verifica que el curso exista o esta activo
-        course = db.session.execute(db.select(Courses).where
-                                   (Courses.id == data.get('course_id'),
-                                    Courses.is_active == True)).scalar()
+        # Se valida que el status sea válido
+        if 'status' in data:
+            valid_statuses = ['pending', 'completed', 'canceled']
+            if data.get('status') not in valid_statuses:
+                response_body['message'] = f'Status inválido. Valores permitidos: {valid_statuses}'
+                return response_body, 400
+
+        # Se verifica que el curso exista o esté activo
+        course = db.session.execute(db.select(Courses).where(
+            Courses.course_id == data.get('course_id'),
+            Courses.is_active == True)).scalar()
         if not course:
             response_body['message'] = 'Curso no encontrado'
             return response_body, 400
         # Validar que el usuario exista
-
-        user_exists = db.session.execute(
-            db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
-
+        user_exists = db.session.execute(db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
+        # Validar que el usuario solo pueda crear compras para sí mismo
+        jwt_user_id = user.get('user_id')
+        request_user_id = data.get('user_id')
         if not user_exists:
             response_body['message'] = 'Usuario no encontrado'
             return response_body, 400
+        
+        if not jwt_user_id:
+            response_body['message'] = 'Token inválido'
+            return response_body, 400
 
+        if str(jwt_user_id) != str(request_user_id):
+            response_body['message'] = 'No puede crear compras para otros usuarios'
+            return response_body, 403  
+        
         row = Purchases(purchase_date=data.get('purchase_date') or date.today(),
                         price=data.get('price'),
                         total=data.get('total'),
@@ -628,50 +679,195 @@ def purchases():
 
 
 @api.route('/purchases/<int:purchase_id>', methods=['GET', 'PUT', 'DELETE'])
+@jwt_required()
 def purchase(purchase_id):
     response_body = {}
 
+    # validacion de rol de usuario
+    user = get_jwt()
+
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+    
     row = db.session.execute(
         db.select(Purchases).where(Purchases.purchase_id == purchase_id)).scalar()
 
+    #Se verifica si existe
     if not row:
-        response_body['message'] = 'Compra no encontrada'
+        response_body['message'] = f'Compra {purchase_id} no encontrada'
         return response_body, 404
+    
     if request.method == 'GET':
+        # Solo admin puede ver cualquier compra
+        if not user.get('is_admin'):
+            # solo el usuario dueño de la compra puede verla
+            jwt_user_id = user.get('user_id')
+            if str(jwt_user_id) != str(row.user_id):
+                response_body['message'] = 'No autorizado para ver esta compra'
+                return response_body, 403
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles de la compra {purchase_id}'
         return response_body, 200
+    
     if request.method == 'PUT':
+        if not user.get('is_admin'):
+            response_body['message'] = 'Solo administradores pueden modificar compras'
+            return response_body, 403
+        
         data = request.json
-        row.purchase_date = data.get('purchase_date', row.purchase_date)
-        row.price = data.get('price', row.price)
-        row.total = data.get('total', row.total)
+        # se valida que las claves requeridas estén en el request body
+        if not data:
+            response_body['message'] = 'Request body requerido para actualizar'
+            return response_body, 400
+        
+        campos_inmutables = ['price', 'total', 'course_id', 'purchase_date', 'created_by']
+        for campo in campos_inmutables:
+            if campo in data:
+                response_body['message'] = f'El campo {campo} no puede ser modificado'
+                return response_body, 400
+        
+        if 'status' in data:
+            valid_statuses = ['pending', 'completed', 'canceled']
+            if data.get('status') not in valid_statuses:
+                response_body['message'] = f'Status inválido. Valores permitidos: {valid_statuses}'
+                return response_body, 400
+        
+        if 'user_id' in data:
+            # Validar que el nuevo usuario exista
+            new_user = db.session.execute(db.select(Users).where(Users.user_id == data['user_id'])).scalar()
+            if not new_user:
+                response_body['message'] = 'Usuario no encontrado'
+                return response_body, 400
+            row.user_id = data.get('user_id')
+
         row.status = data.get('status', row.status)
         row.start_date = data.get('start_date', row.start_date)
+
         db.session.commit()
         response_body['results'] = row.serialize()
         response_body['message'] = f'Compra {purchase_id} actualizada'
         return response_body, 200
-    if request.method == 'DELETE':
-        db.session.delete(row)
-        db.session.commit()
-        response_body['message'] = f'Compra {purchase_id} eliminada'
-        return response_body, 200
-    return response_body, 404
+    return response_body, 405
+
+@api.route('/my-points', methods=['GET'])
+@jwt_required()
+def my_points():
+    response_body = {}
+
+    # Se valida que el usuario esté activo
+    user = get_jwt()
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+
+    # Se obtiene el user_id del token JWT
+    jwt_user_id = user.get('user_id')
+    if not jwt_user_id:
+        response_body['message'] = 'User ID no encontrado en token'
+        return response_body, 400
+
+    # Se obtienen los puntos del usuario ordenados por fecha (más recientes primero)
+    points_rows = db.session.execute(db.select(UserPoints)
+                                     .where(UserPoints.user_id == jwt_user_id)
+                                     .order_by(UserPoints.date.desc())).scalars()
+
+    # Se serializan los puntos para la respuesta
+    points_details = [row.serialize() for row in points_rows]
+
+    # Se calcula el total de puntos sumando los puntos del usuario
+    total_points = db.session.execute(db.select(func.sum(UserPoints.points))
+                                      .where(UserPoints.user_id == jwt_user_id)).scalar() or 0
+
+    # Se obtiene la información básica del usuario
+    user_info = db.session.execute(db.select(Users).where(Users.user_id == jwt_user_id)).scalar()
+
+    response_body['message'] = 'Resumen de puntos del usuario'
+    response_body['results'] = {
+        'user_id': jwt_user_id,
+        'total_points': float(total_points) if total_points else 0,
+        'points_details': points_details,
+        'points_count': len(points_details),
+        'user_info': {
+            'full_name': getattr(user_info, 'full_name', ''),
+            'email': getattr(user_info, 'email', '')
+        } if user_info else {}
+    }
+    
+    return response_body, 200
+
 
 
 @api.route('/user-points', methods=['GET', 'POST'])
+@jwt_required()
 def user_points():
     response_body = {}
+
+    # validacion de rol de usuario
+    user = get_jwt()
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+    
     if request.method == 'GET':
-        rows = db.session.execute(
-        db.select(UserPoints)).scalars()
-        results = [row.serialize() for row in rows]
+        # Se suma los puntos por usuario y se ordena de mayor a menor
+        points_query = db.session.execute(db.select(UserPoints.user_id,
+                                          func.sum(UserPoints.points).label('total_points'))
+                                          .group_by(UserPoints.user_id)
+                                          .order_by(func.sum(UserPoints.points).desc())).all()
+
+        # Se obtienen los detalles de los usuarios en la lista de puntos
+        user_ids = [user_id for user_id, _ in points_query]
+        users = db.session.execute(db.select(Users)
+                                   .where(Users.user_id.in_(user_ids))).scalars()
+
+        # Se serializan los usuarios en un diccionario para acceso rápido
+        serialized_users = {user.user_id: user.serialize() for user in users}
+
+        # Se procesan los resultados
+        results = []
+        for rank, (user_id, total_points) in enumerate(points_query, 1):
+            user_data = serialized_users.get(user_id, {})
+            user_data['rank'] = rank
+            user_data['total_points'] = float(total_points) if total_points else 0
+            results.append(user_data)
+        
+        response_body['message'] = 'User points list'
         response_body['results'] = results
-        response_body['message'] = 'Listado de puntos de usuarios'
         return response_body, 200
+    
+
     if request.method == 'POST':
+        # Solo admin y profesor pueden colocar puntos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No autorizado para crear puntos de usuario, no es admin ni teacher'
+                return response_body, 403
+            
         data = request.json
+        
+        # Se Valida que el request body no esté vacío
+        if not data:
+            response_body['message'] = 'Request body requerido'
+            return response_body, 400
+        
+        # Se valida que las claves requeridas estén en el request body
+        required_fields = ['user_id', 'points']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            response_body['message'] = 'Faltan campos requeridos'
+            response_body['missing_fields'] = missing_fields
+            return response_body, 400
+        
+        # Se  valida que el usuario exista
+        user_exists = db.session.execute(
+            db.select(Users).where(Users.user_id == data.get('user_id'))
+        ).scalar()
+        
+        if not user_exists:
+            response_body['message'] = 'Usuario no encontrado'
+            return response_body, 400
+        
         row = UserPoints(
             user_id=data.get('user_id'),
             points=data.get('points'),
@@ -680,27 +876,59 @@ def user_points():
             date=data.get('date'))
         db.session.add(row)
         db.session.commit()
-        response_body['results'] = row.serialize()
         response_body['message'] = 'Puntos de usuario creados'
+        response_body['results'] = row.serialize()
         return response_body, 201
-    return response_body, 404
+    return response_body, 405
+
 
 
 @api.route('/user-points/<int:point_id>', methods=['GET', 'PUT', 'DELETE'])
+@jwt_required()
 def user_point(point_id):
     response_body = {}
+
+    # validacion de rol de usuario
+    user = get_jwt()
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+
     row = db.session.execute(
         db.select(UserPoints).where(UserPoints.point_id == point_id)).scalar()
 
     if not row:
         response_body['message'] = 'Registro de puntos no encontrado'
         return response_body, 404
+    
     if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles del punto {point_id}'
         return response_body, 200
+    
     if request.method == 'PUT':
+        # Solo admin y profesor pueden actualizar puntos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No eres un Admin ni Teacher, no puedes actualizar puntos'
+                return response_body, 403
+
+        # se valida que las claves requeridas estén en el request body
         data = request.json
+
+        if not data:
+            response_body['message'] = 'Request body requerido para actualizar'
+            return response_body, 400
+
+        # Validar que user_id exista si se está actualizando
+        if 'user_id' in data:
+            user_exists = db.session.execute(
+                db.select(Users).where(Users.user_id == data['user_id'])
+            ).scalar()
+            if not user_exists:
+                response_body['message'] = 'Usuario no encontrado'
+                return response_body, 400
+            
         row.points = data.get('points', row.points)
         row.type = data.get('type', row.type)
         row.event_description = data.get(
@@ -711,12 +939,19 @@ def user_point(point_id):
         response_body['results'] = row.serialize()
         response_body['message'] = f'Punto {point_id} actualizado'
         return response_body, 200
+    
     if request.method == 'DELETE':
+        # Solo admin y profesor pueden eliminar puntos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No eres un Admin ni Teacher, no puedes eliminar puntos'
+                return response_body, 403
         db.session.delete(row)
         db.session.commit()
         response_body['message'] = f'Punto {point_id} eliminado'
         return response_body, 200
-    return response_body, 404
+    return response_body, 405
+
 
 
 @api.route('/userprogress', methods=['GET', 'POST'])
