@@ -3,6 +3,7 @@ This module takes care of starting the API Server, Loading the DB and Adding the
 """
 from datetime import date
 from flask import Flask, request, Blueprint
+from sqlalchemy import func
 from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons, Achievements, UserPoints, UserAchievements
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
@@ -729,46 +730,185 @@ def purchase(purchase_id):
         return response_body, 200
     return response_body, 405
 
+@api.route('/my-points', methods=['GET'])
+@jwt_required()
+def my_points():
+    response_body = {}
+
+    # Se valida que el usuario esté activo
+    user = get_jwt()
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+
+    # Se obtiene el user_id del token JWT
+    jwt_user_id = user.get('user_id')
+    if not jwt_user_id:
+        response_body['message'] = 'User ID no encontrado en token'
+        return response_body, 400
+
+    # Se obtienen los puntos del usuario ordenados por fecha (más recientes primero)
+    points_rows = db.session.execute(db.select(UserPoints)
+                                     .where(UserPoints.user_id == jwt_user_id)
+                                     .order_by(UserPoints.date.desc())).scalars()
+
+    # Se serializan los puntos para la respuesta
+    points_details = [row.serialize() for row in points_rows]
+
+    # Se calcula el total de puntos sumando los puntos del usuario
+    total_points = db.session.execute(db.select(func.sum(UserPoints.points))
+                                      .where(UserPoints.user_id == jwt_user_id)).scalar() or 0
+
+    # se obtiene la información básica del usuario para incluir en la respuesta
+    user_info = db.session.execute(db.select(Users).where(Users.user_id == jwt_user_id)).scalar()
+
+    results = float(total_points) if total_points else 0
+    # se construye la respuesta con el resumen de puntos del usuario
+    response_body['message'] = 'Resumen de puntos del usuario'
+    response_body['user_id'] = jwt_user_id
+    response_body['total_points'] = results
+    response_body['points_details'] = points_details
+    response_body['points_count'] = len(points_details)
+    
+    if user_info:
+        response_body['user_info'] = {
+            'full_name': getattr(user_info, 'full_name', ''),
+            'email': getattr(user_info, 'email', '')
+        }
+        return response_body, 200
+    return response_body, 405
+
 @api.route('/user-points', methods=['GET', 'POST'])
+@jwt_required()
 def user_points():
     response_body = {}
+
+    # validacion de rol de usuario
+    user = get_jwt()
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+    
     if request.method == 'GET':
-        rows = db.session.execute(
-        db.select(UserPoints) ).scalars()
-        results = [row.serialize() for row in rows]
+        # Se suma los puntos por usuario y se ordena de mayor a menor
+        points_query = db.session.execute(db.select(UserPoints.user_id,
+                                          func.sum(UserPoints.points).label('total_points'))
+                                          .group_by(UserPoints.user_id)
+                                          .order_by(func.sum(UserPoints.points).desc())).all()
+
+        # Se obtienen los detalles de los usuarios en la lista de puntos
+        user_ids = [user_id for user_id, _ in points_query]
+        users = db.session.execute(db.select(Users)
+                                   .where(Users.user_id.in_(user_ids))).scalars()
+
+        # Se serializan los usuarios en un diccionario para acceso rápido
+        serialized_users = {user.user_id: user.serialize() for user in users}
+
+        # Se procesan los resultados
+        results = []
+        for rank, (user_id, total_points) in enumerate(points_query, 1):
+            user_data = serialized_users.get(user_id, {})
+            user_data['rank'] = rank
+            user_data['total_points'] = float(total_points) if total_points else 0
+            results.append(user_data)
+        
+        response_body['message'] = 'User points list'
         response_body['results'] = results
-        response_body['message'] = 'Listado de puntos de usuarios'
         return response_body, 200
+    
+
     if request.method == 'POST':
+        # Solo admin y profesor pueden colocar puntos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No autorizado para crear puntos de usuario, no es admin ni teacher'
+                return response_body, 403
+            
         data = request.json
+        
+        # Se Valida que el request body no esté vacío
+        if not data:
+            response_body['message'] = 'Request body requerido'
+            return response_body, 400
+        
+        # Se valida que las claves requeridas estén en el request body
+        required_fields = ['user_id', 'points']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            response_body['message'] = 'Faltan campos requeridos'
+            response_body['missing_fields'] = missing_fields
+            return response_body, 400
+        
+        # Se  valida que el usuario exista
+        user_exists = db.session.execute(
+            db.select(Users).where(Users.user_id == data.get('user_id'))
+        ).scalar()
+        
+        if not user_exists:
+            response_body['message'] = 'Usuario no encontrado'
+            return response_body, 400
+        
         row = UserPoints(
             user_id=data.get('user_id'),
             points=data.get('points'),
             type=data.get('type', 'course'),
             event_description=data.get('event_description'),
-            date=data.get('date') )
+            date=data.get('date')
+        )
+        
         db.session.add(row)
         db.session.commit()
-        response_body['results'] = row.serialize()
         response_body['message'] = 'Puntos de usuario creados'
+        response_body['results'] = row.serialize()
         return response_body, 201
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/user-points/<int:point_id>', methods=['GET', 'PUT', 'DELETE'])
+@jwt_required()
 def user_point(point_id):
     response_body = {}
+
+    # validacion de rol de usuario
+    user = get_jwt()
+    if not user.get('is_active'):
+        response_body['message'] = 'Usuario no autorizado'
+        return response_body, 403
+
     row = db.session.execute(
         db.select(UserPoints).where(UserPoints.point_id == point_id)).scalar()
 
     if not row:
         response_body['message'] = 'Registro de puntos no encontrado'
         return response_body, 404
+    
     if request.method == 'GET':
         response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles del punto {point_id}'
         return response_body, 200
+    
     if request.method == 'PUT':
+        # Solo admin y profesor pueden actualizar puntos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No eres un Admin ni Teacher, no puedes actualizar puntos'
+                return response_body, 403
+
+        # se valida que las claves requeridas estén en el request body
         data = request.json
+
+        if not data:
+            response_body['message'] = 'Request body requerido para actualizar'
+            return response_body, 400
+
+        # Validar que user_id exista si se está actualizando
+        if 'user_id' in data:
+            user_exists = db.session.execute(
+                db.select(Users).where(Users.user_id == data['user_id'])
+            ).scalar()
+            if not user_exists:
+                response_body['message'] = 'Usuario no encontrado'
+                return response_body, 400
+            
         row.points = data.get('points', row.points)
         row.type = data.get('type', row.type)
         row.event_description = data.get('event_description', row.event_description)
@@ -778,12 +918,18 @@ def user_point(point_id):
         response_body['results'] = row.serialize()
         response_body['message'] = f'Punto {point_id} actualizado'
         return response_body, 200
+    
     if request.method == 'DELETE':
+        # Solo admin y profesor pueden eliminar puntos
+        if not user.get('is_admin'):
+            if user.get('role') != 'teacher':
+                response_body['message'] = 'No eres un Admin ni Teacher, no puedes eliminar puntos'
+                return response_body, 403
         db.session.delete(row)
         db.session.commit()
         response_body['message'] = f'Punto {point_id} eliminado'
         return response_body, 200
-    return response_body, 404
+    return response_body, 405
 
 @api.route('/userprogress', methods=['GET', 'POST'])
 def user_progress():
