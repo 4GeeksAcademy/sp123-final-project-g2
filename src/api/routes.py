@@ -959,8 +959,7 @@ def achievements():
 
         return response_body, 201
 
-    return response_body, 405
-
+    
 
 @api.route('/achievements/<int:achievement_id>', methods=['GET', 'PUT', 'DELETE'])
 def achievement(achievement_id):
@@ -1025,7 +1024,6 @@ def achievement(achievement_id):
         return response_body, 200
 
     return response_body, 405
-
 
 @api.route('/user-achievements', methods=['GET', 'POST'])
 def user_achievements():
