@@ -861,8 +861,7 @@ def user_points():
         
         # Se  valida que el usuario exista
         user_exists = db.session.execute(
-            db.select(Users).where(Users.user_id == data.get('user_id'))
-        ).scalar()
+            db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
         
         if not user_exists:
             response_body['message'] = 'Usuario no encontrado'
@@ -971,11 +970,17 @@ def userprogress():
     if request.method == 'GET':
         if is_admin or role == 'teacher':
             rows = db.session.execute(db.select(UserProgress)).scalars().all()
-            response_body['results'] = [start_date(r.serialize()) for r in rows]
+            #response_body['results'] = [start_date(r.serialize()) for r in rows]
             response_body['message'] = 'Listado general de progreso de todos los usuarios'
             return response_body, 200
         rows = db.session.execute(db.select(UserProgress).where(UserProgress.user_id == current_user_id)).scalars().all()
-        response_body['results'] = [start_date(r.serialize()) for r in rows]
+        #verificar que row es mayor a 0 o = a 0. Si es = 0 se devuelve mensaje que no tiene curso contratado. 
+
+        progress =[1 for r in rows if r.completed]
+        
+        #reponse_boy en el results hay que dar la el % que es lo acumulado sobre los progresos del curso
+
+        response_body['results'] = progress.count(1)/len(rows) 
         response_body['message'] = f'Listado de progreso del usuario {current_user_id}'
         return response_body, 200
 #Método Post 
