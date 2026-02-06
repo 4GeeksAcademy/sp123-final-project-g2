@@ -292,27 +292,3 @@ class MultimediaResources(db.Model):
             "description": self.description,
             "order": self.order
         }
-    __tablename__ = "multimedia_resources"
-    resource_id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.Enum('video', 'image', 'gif', 'animation', 'document', name='type_multimedia_resources'), nullable=False)
-    url = db.Column(db.String(500), nullable=False)
-    duration_seconds = db.Column(db.Integer, nullable=True)
-    description = db.Column(db.String(255), nullable=True)
-    order = db.Column(db.Integer, nullable=False)
-    lesson_id = db.Column(db.Integer, db.ForeignKey('lessons.lesson_id', ondelete='CASCADE'))
-    lesson_to = db.relationship('Lessons', foreign_keys=[lesson_id],
-                                backref=db.backref('multimedia_resources', lazy='select'))
-
-    def __repr__(self):
-        return f'<MultimediaResources {self.resource_id} - {self.url} - {self.description}>'
-
-    def serialize(self):
-        return {
-            "resource_id": self.resource_id,
-            "lesson_id": self.lesson_id,
-            "type": self.type,
-            "url": self.url,
-            "duration_seconds": self.duration_seconds,
-            "description": self.description,
-            "order": self.order
-        }
