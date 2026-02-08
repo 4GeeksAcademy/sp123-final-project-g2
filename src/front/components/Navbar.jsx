@@ -2,70 +2,91 @@ import { Link, useNavigate } from "react-router-dom";
 import useGlobalReducer from "../hooks/useGlobalReducer";
 
 export const Navbar = () => {
-
 	const { store, dispatch } = useGlobalReducer();
 	const navigate = useNavigate();
 
 	const handleRegistro = () => {
-		navigate('/signup')
-	}
+		navigate("/signup");
+	};
 
 	const handleLogin = () => {
-
 		if (store.isLogged) {
-			localStorage.removeItem('token')
+			// Logout
+			localStorage.removeItem("token");
 
-			dispatch({ type: 'handle_token', payload: '' })
-			dispatch({ type: 'handle_user', payload: {} })
-			dispatch({ type: 'handle_isLogged', payload: false })
-			navigate('/')
+			dispatch({ type: "handle_token", payload: "" });
+			dispatch({ type: "handle_user", payload: {} });
+			dispatch({ type: "handle_isLogged", payload: false });
+
+			navigate("/");
 		} else {
+			// Login
 			dispatch({
-				type: 'handle_alert',
+				type: "handle_alert",
 				payload: {
-					text: '',
-					color: '',
+					text: "",
+					color: "",
 					display: false
 				}
-			})
-
-			navigate('/login')
+			});
+			navigate("/login");
 		}
-	}
+	};
 
 	return (
-
-		<nav className="navbar navbar-light bg-light">
+		<nav className="navbar navbar-light bg-light px-3">
 			
-			<ul className="navbar-nav me-auto mb-2 mb-lg-0  ">
-				
-				{store.isLogged ?   // Para hacer invisible la opciones del menu antes de logiarse
+			{/* LEFT MENU */}
+			<ul className="navbar-nav flex-row gap-3">
+				{store.isLogged && (
 					<>
-						<span className="navbar-toggler-icon"></span>
 						<li className="nav-item">
-							<Link className="nav-link" to="/login">Cursos</Link>
+							<Link className="nav-link" to="/courses">
+								Cursos
+							</Link>
 						</li>
+
 						<li className="nav-item">
-							<Link className="nav-link" to="/">Videos</Link>
+							<Link className="nav-link" to="/dashboard">
+								Mi progreso
+							</Link>
+						</li>
+
+						<li className="nav-item">
+							<Link className="nav-link" to="/achievements">
+								Logros
+							</Link>
 						</li>
 					</>
-					: ''
-				}
+				)}
 			</ul>
 
-			<div className="dropdown">
-				<Link to="/">
-					<span className="navbar-brand mb-0 h1">React Boilerplate</span>
-				</Link>
+			{/* BRAND */}
+			<Link to="/" className="navbar-brand mx-auto">
+				React Boilerplate
+			</Link>
 
-				<span onClick={handleLogin} className='btn btn-warning ms-2'>{store.isLogged ? 'Logout' : 'Login'}
+			{/* RIGHT ACTIONS */}
+			<div className="d-flex align-items-center">
+				<span
+					onClick={handleLogin}
+					className="btn btn-warning ms-2"
+					style={{ cursor: "pointer" }}
+				>
+					{store.isLogged ? "Logout" : "Login"}
 				</span>
 
 				{!store.isLogged && (
-					<span onClick={handleRegistro} className='btn btn-warning ms-2'>Registro</span>
+					<span
+						onClick={handleRegistro}
+						className="btn btn-warning ms-2"
+						style={{ cursor: "pointer" }}
+					>
+						Registro
+					</span>
 				)}
-
 			</div>
+
 		</nav>
 	);
 };
