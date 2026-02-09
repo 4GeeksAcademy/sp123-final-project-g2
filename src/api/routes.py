@@ -54,8 +54,7 @@ def validate_active_user():
         
         # Validar que exista y sea string
         if trial_end_date and isinstance(trial_end_date, str) and trial_end_date.strip():
-            from datetime import datetime, timezone
-            
+    
             # Verificar formato ISO básico
             if 'T' in trial_end_date and '-' in trial_end_date:
                 try:
@@ -249,14 +248,14 @@ def login():
     if response_body:
         return response_body, status 
     
-    # 2. Obtener y limpiar datos
+    # Se obtienen email y contraseña del JSON recibido, y se normaliza el email para evitar problemas de mayúsculas/minúsculas o espacios.
     email = data.get("email", "").strip().lower()
     password = data.get("password", "")
     
     # 3. Validar contraseña no vacía
     if not password:
         response_body = {
-            'message': "La contraseña no puede estar vacía",
+            'message': "El usuario debe proporcionar una contraseña",
             'results': {}
         }
         return response_body, 400
