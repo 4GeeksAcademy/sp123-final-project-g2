@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import useGlobalReducer from "../hooks/useGlobalReducer";
+import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
 
 export const Navbar = () => {
   const { store, dispatch } = useGlobalReducer();
@@ -26,25 +26,36 @@ export const Navbar = () => {
   };
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow px-4">
-      
+    <nav
+      className="navbar navbar-expand-lg navbar-dark shadow px-4"
+      style={{ background: "linear-gradient(90deg,#1e2bd6,#2f45ff)" }}
+    >
+      {/* LOGO */}
       <Link to="/" className="navbar-brand fw-bold fs-4">
-        🤟 SignaLearn
+       +Vocal
       </Link>
+
+      {/* HAMBURGUESA */}
       <button
         className="navbar-toggler"
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#mainNavbar"
-        aria-controls="mainNavbar"
-        aria-expanded="false"
-        aria-label="Toggle navigation">
+      >
         <span className="navbar-toggler-icon"></span>
       </button>
 
       <div className="collapse navbar-collapse" id="mainNavbar">
-
+        
+        {/* IZQUIERDA */}
         <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+          
+          <li className="nav-item">
+            <Link className="nav-link fw-semibold" to="/quienes-somos">
+              Quiénes somos
+            </Link>
+          </li>
+
           {store.isLogged && (
             <>
               <li className="nav-item">
@@ -66,9 +77,12 @@ export const Navbar = () => {
               </li>
             </>
           )}
+
         </ul>
-        
+
+        {/* DERECHA */}
         <div className="d-flex align-items-center gap-3">
+
           {store.isLogged && (
             <span className="text-light">
               👋 Hola, <strong>{store.current_user?.first_name || "Usuario"}</strong>
@@ -78,8 +92,10 @@ export const Navbar = () => {
           <button
             onClick={handleLogin}
             className={`btn ${
-              store.isLogged ? "btn-outline-light" : "btn-light"
-            }`}
+              store.isLogged
+                ? "btn-outline-light"
+                : "btn-light text-primary fw-bold"
+            } rounded-pill px-3`}
           >
             {store.isLogged ? "Cerrar sesión" : "Iniciar sesión"}
           </button>
@@ -87,13 +103,16 @@ export const Navbar = () => {
           {!store.isLogged && (
             <button
               onClick={handleRegistro}
-              className="btn btn-outline-light"
+              className="btn btn-warning fw-bold rounded-pill px-3"
             >
               Registro
             </button>
           )}
+
         </div>
       </div>
     </nav>
   );
 };
+
+  
