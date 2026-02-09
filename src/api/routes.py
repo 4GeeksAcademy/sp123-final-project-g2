@@ -1,16 +1,23 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
-from datetime import date, datetime
 from flask import Flask, request, Blueprint
 from sqlalchemy import func
 from api.models import db, Users, Courses, Modules, Purchases, MultimediaResources, Lessons, Achievements, UserPoints, UserAchievements
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
+
+from werkzeug.security import check_password_hash 
+from werkzeug.security import generate_password_hash
+
 from flask_jwt_extended import create_access_token
 from flask_jwt_extended import get_jwt_identity
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import get_jwt
+
+from datetime import datetime, timezone, timedelta
+
+
 
 
 CURRENT_USER_ID = 1
@@ -18,334 +25,1196 @@ CURRENT_USER_ID = 1
 api = Blueprint('api', __name__)
 CORS(api)  # Allow CORS requests to this API
 
+""" --- HELPERS DE VALIDACIÓN --- """
+
+# Helper para validar que el usuario del JWT esté activo
+def validate_active_user():
+
+    user = get_jwt()
+    
+    if not user:
+        response_body = {
+            'results': {},
+            'message': 'Token inválido o no proporcionado'
+        }
+        return None, response_body, 401
+    
+    if not user.get('is_active', False):
+        response_body = {
+            'results': {},
+            'message': 'Usuario no autorizado'
+        }
+        return None, response_body, 403
+    
+    # se verifica si el usuario es demo y se valida su trial_end_date
+    trial_date_parseable = False
+    
+    if user.get('role') == 'demo':
+        trial_end_date = user.get('trial_end_date')
+        
+        # Validar que exista y sea string
+        if trial_end_date and isinstance(trial_end_date, str) and trial_end_date.strip():
+            from datetime import datetime, timezone
+            
+            # Verificar formato ISO básico
+            if 'T' in trial_end_date and '-' in trial_end_date:
+                try:
+                    # Intentar parsear para verificar validez
+                    date_str = trial_end_date.replace('Z', '+00:00')
+                    trial_end = datetime.fromisoformat(date_str)
+                    trial_date_parseable = True  # ✅ FLAG: fecha es parseable
+                    
+                    # Validar que trial no haya expirado
+                    now = datetime.now(timezone.utc)
+                    if trial_end < now:
+                        response_body = {
+                            'results': {},
+                            'message': 'Periodo de trial expirado. Por favor, actualice su plan.'
+                        }
+                        return None, response_body, 403
+                        
+                except ValueError:
+                    print(f"⚠️ ADVERTENCIA: Formato trial_end_date inválido para usuario {user.get('user_id')}: {trial_end_date}")
+                    
+    # Se agrega el flag de parseabilidad al objeto user para uso posterior (ejemplo: en /protected para mostrar info del trial)
+    user['_trial_date_parseable'] = trial_date_parseable
+    
+    return user, None, 200
+
+# helper para validar el rol del usuario y permisos de admin, con opciones flexibles para diferentes escenarios de autorización
+def validate_user_role(
+    require_role=None,
+    allowed_roles=None,
+    require_admin=False,
+    allow_demo=False
+):
+    # 1. Validar usuario activo
+    user, response_body, status_code = validate_active_user()
+    if response_body:
+        return None, response_body, status_code
+    
+    # 2. Extraer datos del usuario
+    user_role = user.get('role')
+    is_admin = user.get('is_admin', False)
+    
+    # 3. Validar permisos de admin si se requieren
+    if require_admin:
+        if not is_admin:
+            response_body = {
+                'results': {},
+                'message': 'Se requieren permisos de administrador'
+            }
+            return None, response_body, 403
+        return user, None, 200
+    
+    # 4. Admin tiene acceso total
+    if is_admin:
+        return user, None, 200
+    
+    # 5. Validar acceso para usuarios demo
+    if user_role == 'demo' and not allow_demo:
+        response_body = {
+            'results': {},
+            'message': 'Usuarios demo tienen acceso limitado'
+        }
+        return None, response_body, 403
+    
+    # 6. Validar rol específico requerido
+    if require_role is not None:
+        if user_role != require_role:
+            response_body = {
+                'results': {},
+                'message': f'Se requiere rol de {require_role}'
+            }
+            return None, response_body, 403
+        return user, None, 200
+    
+    # 7. Validar lista de roles permitidos
+    if allowed_roles is not None:
+        if user_role not in allowed_roles:
+            if len(allowed_roles) == 1:
+                msg = f'Se requiere rol de {allowed_roles[0]}'
+            else:
+                msg = f'Se requiere uno de estos roles: {", ".join(allowed_roles)}'
+            
+            response_body = {
+                'results': {},
+                'message': msg
+            }
+            return None, response_body, 403
+        return user, None, 200
+    
+    # 8. Si no hay restricciones, acceso concedido
+    return user, None, 200
+
+#helper para validar que el request tenga un body en formato JSON y que contenga los campos requeridos (si se especifican)
+def validate_request_json(required_fields=None):
+    
+    # Se verifica que el request tenga un body en formato JSON
+    if not request.json: 
+        response_body = {
+            'message': 'Request body requerido. Envía los datos en formato JSON.',
+            'results': {}
+        }
+        return None, response_body, 400
+    
+    # Se obtienen los datos del JSON del request
+    received_data = request.json 
+    
+    # Se valida que los campos requeridos estén presentes en el JSON recibido
+    if required_fields:
+        missing_fields = []
+        
+        # Se recorre la lista de campos requeridos y se verifica si cada uno está presente en los datos recibidos
+        for field in required_fields:
+            if field not in received_data:
+                missing_fields.append(field)
+        
+        # Dado que falte algun campo requerido se construye un response_body indicando el error y cuáles campos faltan, y se retorna con status 400
+        if missing_fields:
+            response_body = {
+                'message': 'Faltan campos requeridos en los datos',
+                'results': {},
+                'missing_fields': missing_fields 
+            }
+            return None, response_body, 400
+    
+    return received_data, None, 200
+
+# Helper que combina validación de JSON y campos requeridos para endpoints POST/PUT
+def validate_required_data(data, required_fields):
+
+    if not data:
+        response_body = {
+            'results': {},
+            'message': 'Datos no proporcionados'
+        }
+        return None, response_body, 400  
+    
+    missing_fields = [field for field in required_fields if field not in data]
+    
+    if missing_fields:
+        response_body = {
+            'results': {},
+            'message': 'Faltan campos requeridos',
+            'missing_fields': missing_fields
+        }
+        return None, response_body, 400 
+    
+    return data, None, 200
+
+# Obtiene la información del período de prueba para usuarios demo, verificando que sean demo y tengan fecha válida.
+def get_trial_info(user):
+
+    #  Solo para usuarios demo
+    if user.get('role') != 'demo':
+        return None
+    
+    # Obtener fecha de trial
+    trial_end_date = user.get('trial_end_date')
+    
+    #  Validaciones básicas
+    if not trial_end_date or not isinstance(trial_end_date, str):
+        return None
+    
+    if not trial_end_date.strip():
+        return None
+    
+    # Se verifica que la fecha tenga el formato correcto (como "2024-12-31T23:59:59"), para evitar errores al procesarla.
+    if not user.get('_trial_date_parseable', False):
+        return None
+    
+    # Se ajusta la fecha al formato estándar y se convierte a un objeto de fecha, sabiendo que ya fue validada antes y funcionará correctamente.
+    date_str = trial_end_date.replace('Z', '+00:00')
+    trial_end = datetime.fromisoformat(date_str)
+    now = datetime.now(timezone.utc)
+    
+    # 6. Calcular información
+    days_left = (trial_end - now).days
+    
+    return {
+        'trial_end_date': trial_end_date,
+        'days_remaining': max(days_left, 0),
+        'status': 'active' if days_left > 0 else 'expired'
+    }
+
+
+""" --- RUTAS  --- """
+
 
 @api.route("/login", methods=["POST"])
 def login():
-    response_body = {}
-    email = request.json.get("email", None)
-    password_hash = request.json.get("password", None)
-    # Validar con mi BD
-    row = db.session.execute(db.select(Users).where(Users.email == email,
-                                           Users.password_hash == password_hash,
-                                           Users.is_active)).scalar()
-    if not row:
-        response_body['message'] = "Bad username or password"
+    # 1. Validar JSON y campos requeridos
+    data, response_body, status = validate_request_json(["email", "password"])
+    if response_body:
+        return response_body, status 
+    
+    # 2. Obtener y limpiar datos
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+    
+    # 3. Validar contraseña no vacía
+    if not password:
+        response_body = {
+            'message': "La contraseña no puede estar vacía",
+            'results': {}
+        }
+        return response_body, 400
+    
+    # 4. Buscar usuario activo
+    row = db.session.execute(db.select(Users).where(Users.email == email,Users.is_active == True)).scalar()
+    
+    # 5. Respuesta segura 
+    if not row or not check_password_hash(row.password_hash, password):
+        response_body = {
+            'message': "Correo o contraseña incorrectos, o usuario inactivo",
+            'results': {}
+        }
         return response_body, 401
-
-    user = row.serialize()
-    user = {'user_id': user['user_id'],
-              'is_active': user['is_active'],
-              'role': user['role'],
-              'is_admin': user['is_admin']}
-    response_body['message'] = 'User logged, ok'
-    response_body['results'] = user
-    response_body['access_token'] = create_access_token(
-        identity=email, additional_claims=user)
+    
+    # 6. Crear token con datos de usuario
+    user_data = {
+        'user_id': row.user_id,
+        'is_active': row.is_active,
+        'role': row.role,
+        'is_admin': row.is_admin,
+        'trial_end_date': row.trial_end_date.isoformat() if row.trial_end_date else None 
+    }
+    
+    response_body = {
+        'message': 'Usuario autenticado correctamente',
+        'results': {
+            'user_id': user_data['user_id'],
+            'role': user_data['role'],
+            'is_active': user_data['is_active'],
+            'is_admin': user_data['is_admin'],
+            'trial_end_date': user_data['trial_end_date']
+        },
+        'access_token': create_access_token(
+            identity=user_data['user_id'], 
+            additional_claims=user_data
+        )
+    }
     return response_body, 200
-
 
 @api.route("/protected", methods=["GET"])
 @jwt_required()
 def protected():
-    response_body = {}
-    # Access the identity of the current user with get_jwt_identity
-    current_user = get_jwt_identity()  # devuelve elidentity email
-    additional_user = get_jwt()  # Los datos adiconales
 
-    print(current_user)
-    print(additional_user['user_id'])
-    response_body['message'] = "Autorizado para ver esta información"
-    response_body['results'] = current_user
+    # Se valida que el usuario del JWT esté activo con el helper correspondiente, y se obtienen sus datos para incluirlos en la respuesta.
+    user, response_body, status_code = validate_active_user()
+    if response_body:
+        return response_body, status_code
+    
+    # Construir datos base del usuario
+    response_data = {
+        'user_id': user.get('user_id'),
+        'email': user.get('email', ''),
+        'role': user.get('role'),
+        'is_active': user.get('is_active', False),
+        'is_admin': user.get('is_admin', False)
+    }
+    
+    #  Obtener información de trial si aplica (usando helper)
+    trial_info = get_trial_info(user)
+    if trial_info:
+        response_data['trial_info'] = trial_info
+    
+    # 4. Construir y retornar respuesta final
+    response_body = {
+        'message': 'Acceso autorizado a información protegida',
+        'results': response_data
+    }
+    
     return response_body, 200
 
-
-@api.route('/users', methods=['GET', 'POST'])
-def users():
+@api.route('/register', methods=['POST'])
+def register():
     response_body = {}
+    
+    # 1. Validar JSON y campos requeridos
+    data, error_response, status = validate_request_json([
+        'email', 'password', 'first_name', 'last_name'
+    ])
+    if error_response:
+        return error_response, status
+    
+    # 2. Validar formato de email
+    email = data.get('email', '').strip().lower()
+    if '@' not in email or '.' not in email.split('@')[-1]:
+        response_body = {
+            'message': 'Formato de email inválido',
+            'results': {}
+        }
+        return response_body, 400
+    
+    # 3. Validar contraseña
+    password = data.get('password', '')
+    if not password:
+        response_body = {
+            'message': 'La contraseña no puede estar vacía',
+            'results': {}
+        }
+        return response_body, 400
+    
+    if len(password) < 8:
+        response_body = {
+            'message': 'La contraseña debe tener al menos 8 caracteres',
+            'results': {}
+        }
+        return response_body, 400
+    
+    # 4. Se verifica si ya existe un usuario con el mismo email (sin importar mayúsculas/minúsculas)
+    existing_user = db.session.execute(db.select(Users).where(Users.email == email)).scalar()
+    
+    # Si el usuario ya existe, informar error
+    if existing_user:
+        response_body = {
+            'message': f'El usuario con email {email} ya existe',
+            'results': {}
+        }
+        return response_body, 409
+    
+    # 5. Si el usuario no exite se crea un nuevo usuario con rol demo, trial de 7 días, y se guarda en la base de datos. Se utiliza generate_password_hash para almacenar la contraseña de forma segura.
+    now = datetime.now(timezone.utc)
+    trial_end_date = now + timedelta(days=7)
+    
+    password_hash = generate_password_hash(password)
+    
+    row = Users(
+        email=email,
+        password_hash=password_hash,
+        first_name=data.get('first_name', '').strip(),
+        last_name=data.get('last_name', '').strip(),
+        role='demo',
+        current_points=0,
+        is_active=True,
+        is_admin=False,
+        registration_date=now,
+        trial_end_date=trial_end_date,
+        last_access=None
+    )
+    
+    db.session.add(row)
+    db.session.commit() 
+    
+    response_body['message'] = 'Usuario demo creado exitosamente. Trial de 7 días activado.'
+    response_body['results'] = {
+        'user_id': row.user_id,
+        'email': row.email,
+        'first_name': row.first_name,
+        'last_name': row.last_name,
+        'role': row.role,
+        'trial_end_date': trial_end_date.isoformat()
+    }
+    
+    
+    return response_body, 201
 
-    if request.method == 'GET':
-        rows = db.session.execute(db.select(Users)).scalars()
+
+@api.route('/users', methods=['GET'])
+@jwt_required()
+def get_users():
+
+    response_body = {}
+    
+    # Validar usuario activo y obtener datos del JWT con el helper correspondiente
+    user, response_body_validation, status = validate_active_user()
+    if response_body_validation:
+        return response_body_validation, status
+    
+    user_role = user.get('role')
+    is_admin = user.get('is_admin', False)
+    teacher_id = user.get('user_id')
+    
+    # Obtener parámetros de paginación
+    page = request.args.get('page', default=1, type=int)
+    per_page = request.args.get('per_page', default=20, type=int)
+    
+    # Validar parámetros de paginación
+    if page < 1:
+        page = 1
+    if per_page < 1 or per_page > 100:  
+        per_page = 20
+    
+    # Calcular offset para paginación
+    offset = (page - 1) * per_page
+    
+    # Admin ve todos los usuarios (todos los campos)
+    if is_admin:
+        # Contar total de usuarios para paginación
+        total_query = db.session.execute(db.select(db.func.count()).select_from(Users)).scalar()
+        
+        # Obtener usuarios con paginación
+        rows = db.session.execute(db.select(Users).order_by(Users.user_id).limit(per_page).offset(offset)).scalars()
+        
         results = [row.serialize() for row in rows]
-        response_body['results'] = results
-        response_body['message'] = 'Listado de usuarios'
-        return response_body, 200
-    if request.method == 'POST':
-        data = request.json
-        row = Users(email=data.get('email'),
-                    password_hash=data.get('password'),
-                    first_name=data.get('first_name'),
-                    last_name=data.get('last_name'),
-                    role='demo',
-                    current_points=data.get('current_points'),
-                    is_active=True,
-                    is_admin=False,
-                    registration_date=data.get('registration_date'),
-                    trial_end_date=data.get('trial_end_date'),
-                    last_access=data.get('last_access'))
-        db.session.add(row)
-        db.session.commit()
-        response_body['results'] = row.serialize()
-        response_body['message'] = 'Usuario creado'
-        return response_body, 201
-    return response_body, 404
-
+        
+        # Calcular páginas totales de forma segura
+        total_pages = 0
+        if per_page > 0 and total_query:
+            total_pages = (total_query + per_page - 1) // per_page
+        
+        response_body['message'] = 'Listado completo de usuarios (vista admin)'
+        response_body['pagination'] = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_query,
+            'total_pages': total_pages
+        }
+    
+    # Teacher ve solo estudiantes de SUS cursos (campos limitados: nombre, email, puntos)
+    elif user_role == 'teacher':
+        # Buscar estudiantes en cursos del profesor
+        students_query = db.session.execute(
+            db.select(Users)
+            .join(Purchases, Users.user_id == Purchases.user_id)
+            .join(Courses, Purchases.course_id == Courses.course_id)
+            .where(Courses.created_by == teacher_id, Users.role == 'student')
+            .distinct()
+            .order_by(Users.user_id)
+            .limit(per_page)
+            .offset(offset)
+        ).scalars()
+        
+        # Contar total (para paginación)
+        total_count_query = db.session.execute(
+            db.select(db.func.count()).select_from(Users)
+            .join(Purchases, Users.user_id == Purchases.user_id)
+            .join(Courses, Purchases.course_id == Courses.course_id)
+            .where(Courses.created_by == teacher_id, Users.role == 'student')
+            .distinct()
+        ).scalar()
+        
+        students = list(students_query)
+        
+        # Solo campos permitidos: nombre, email, puntos
+        results = []
+        for student in students:
+            results.append({
+                'user_id': student.user_id,
+                'first_name': student.first_name,
+                'last_name': student.last_name,
+                'email': student.email,
+                'current_points': student.current_points,
+                'role': student.role,
+            })
+        
+        # Calcular páginas totales de forma segura
+        total_pages = 0
+        if per_page > 0 and total_count_query:
+            total_pages = (total_count_query + per_page - 1) // per_page
+        
+        response_body['message'] = f'Estudiantes en tus cursos ({len(results)} estudiantes)'
+        response_body['pagination'] = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_count_query or 0,
+            'total_pages': total_pages
+        }
+    
+    # Student/Demo no puede ver lista de usuarios
+    else:
+        response_body = {
+            'message': 'No autorizado para ver listado de usuarios',
+            'results': {}
+        }
+        return response_body, 403
+    
+    response_body['results'] = results
+    response_body['count'] = len(results)
+    
+    return response_body, 200
 
 @api.route('/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
+@jwt_required()
 def user(user_id):
     response_body = {}
+    
+    # 1. Validar usuario autenticado
+    current_user, response_body_validation, status = validate_active_user()
+    if response_body_validation:
+        return response_body_validation, status
+    
+    current_user_id = current_user.get('user_id')
+    is_admin = current_user.get('is_admin', False)
+    
+    # 2. Buscar usuario objetivo
+    target_user = db.session.execute(
+        db.select(Users).where(Users.user_id == user_id)
+    ).scalar()
+    
+    if not target_user:
+        response_body = {
+            'message': f'Usuario {user_id} no encontrado',
+            'results': {}
+        }
+        return response_body, 404
+    
+    # 3. GET: Obtener detalles
+    if request.method == 'GET':
+        if not is_admin and current_user_id != user_id:
+            response_body = {
+                'message': 'No autorizado para ver este usuario',
+                'results': {}
+            }
+            return response_body, 403
+        
+        if is_admin:
+            user_data = target_user.serialize()
+        else:
+            user_data = {
+                'user_id': target_user.user_id,
+                'first_name': target_user.first_name,
+                'last_name': target_user.last_name,
+                'email': target_user.email,
+                'role': target_user.role,
+                'current_points': target_user.current_points,
+                'is_active': target_user.is_active,
+                'registration_date': target_user.registration_date.isoformat() if target_user.registration_date else None,
+                'trial_end_date': target_user.trial_end_date.isoformat() if target_user.trial_end_date else None,
+            }
+        
+        response_body = {
+            'message': f'Detalles del usuario {user_id}',
+            'results': user_data
+        }
+        return response_body, 200
+    
+    # 4. PUT: Actualizar usuario
+    if request.method == 'PUT':
+        if not is_admin and current_user_id != user_id:
+            response_body = {
+                'message': 'No autorizado para actualizar este usuario',
+                'results': {}
+            }
+            return response_body, 403
+        
+        data, error_response, status = validate_request_json()
+        if error_response:
+            return error_response, status
+        
+        # Campos que solo admin puede modificar (email YA NO está aquí)
+        admin_only_fields = ['is_admin', 'role', 'current_points', 'trial_end_date', 'is_active']
+        if not is_admin:
+            for field in admin_only_fields:
+                if field in data:
+                    response_body = {
+                        'message': f'No autorizado para modificar {field}',
+                        'results': {}
+                    }
+                    return response_body, 403
+        
+        # Validar email único (si se está actualizando) - AHORA usuarios pueden cambiar su email
+        if 'email' in data and data['email'] != target_user.email:
+            existing = db.session.execute(
+                db.select(Users).where(Users.email == data['email'])
+            ).scalar()
+            if existing:
+                response_body = {
+                    'message': 'El email ya está registrado',
+                    'results': {}
+                }
+                return response_body, 409
+        
+        # Actualizar campos
+        if 'first_name' in data:
+            target_user.first_name = data['first_name'].strip()
+        if 'last_name' in data:
+            target_user.last_name = data['last_name'].strip()
+        if 'email' in data:  # ✅ AHORA usuarios pueden cambiar su email
+            target_user.email = data['email'].strip().lower()
+        if 'role' in data and is_admin:
+            target_user.role = data['role']
+        if 'current_points' in data and is_admin:
+            points = data['current_points']
+            if isinstance(points, (int, float)) and points >= 0:
+                target_user.current_points = points
+            else:
+                response_body = {
+                    'message': 'Los puntos deben ser un número no negativo',
+                    'results': {}
+                }
+                return response_body, 400
+        if 'is_active' in data and is_admin:
+            target_user.is_active = bool(data['is_active'])
+        if 'is_admin' in data and is_admin:
+            target_user.is_admin = bool(data['is_admin'])
+        if 'trial_end_date' in data and is_admin:
+            try:
+                from datetime import datetime
+                trial_date = datetime.fromisoformat(data['trial_end_date'].replace('Z', '+00:00'))
+                target_user.trial_end_date = trial_date
+            except ValueError:
+                response_body = {
+                    'message': 'Formato de fecha inválido para trial_end_date',
+                    'results': {}
+                }
+                return response_body, 400
+        
+        db.session.commit()
+        
+        if is_admin:
+            response_data = target_user.serialize()
+        else:
+            response_data = {
+                'user_id': target_user.user_id,
+                'first_name': target_user.first_name,
+                'last_name': target_user.last_name,
+                'email': target_user.email,
+                'role': target_user.role,
+                'current_points': target_user.current_points,
+                'is_active': target_user.is_active,
+                'registration_date': target_user.registration_date.isoformat() if target_user.registration_date else None,
+                'trial_end_date': target_user.trial_end_date.isoformat() if target_user.trial_end_date else None,
+            }
+        
+        response_body = {
+            'message': f'Usuario {user_id} actualizado',
+            'results': response_data
+        }
+        return response_body, 200
+    
+    # 5. DELETE: Eliminar usuario
+    if request.method == 'DELETE':
+        if not is_admin:
+            response_body = {
+                'message': 'Solo administradores pueden eliminar usuarios',
+                'results': {}
+            }
+            return response_body, 403
+        
+        if current_user_id == user_id:
+            response_body = {
+                'message': 'No puedes eliminarte a ti mismo',
+                'results': {}
+            }
+            return response_body, 400
+        
+        db.session.delete(target_user)
+        db.session.commit()
+        
+        response_body = {
+            'message': f'Usuario {user_id} eliminado',
+            'results': {}
+        }
+        return response_body, 200
+    
+    return response_body, 405
 
-    row = db.session.execute(
-        db.select(Users).where(Users.user_id == user_id)).scalar()
+@api.route('/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
 
-    if not row:
+    response_body = {}
+    
+    #Validar usuario autenticado y obtener datos del JWT con el helper correspondiente
+    user, response_body_validation, status = validate_active_user()
+    if response_body_validation:
+        return response_body_validation, status
+    
+    user_id = user.get('user_id')
+    
+    # Valida el JSON y campos requeridos con el helper correspondiente
+    data, error_response, status = validate_request_json(['current_password', 'new_password'])
+    if error_response:
+        return error_response, status
+    
+    # se buscar usuario en base de datos
+    db_user = db.session.execute(db.select(Users).where(Users.user_id == user_id)).scalar()
+    
+    if not db_user:
         response_body['message'] = 'Usuario no encontrado'
         return response_body, 404
-    if request.method == 'GET':
-        response_body['results'] = row.serialize()
-        response_body['message'] = f'Detalles del usuario {user_id}'
-        return response_body, 200
-    if request.method == 'PUT':
-        data = request.json
-        row.first_name = data.get('first_name', row.first_name)
-        row.last_name = data.get('last_name', row.last_name)
-        row.role = data.get('role', row.role)
-        row.email = data.get('email', row.email)
-        # row.password_hash = data.get('password', row.password_hash)
-        row.current_points = data.get('current_points', row.current_points)
-        row.is_active = data.get('is_active', row.is_active)
-        row.is_admin = data.get('is_admin', row.is_admin)
-        row.trial_end_date = data.get('trial_end_date', row.trial_end_date)
-        row.last_access = data.get('last_access', row.last_access)
-        db.session.commit()
+    
+    # Se obtienen las contraseñas del request
+    current_password = data.get('current_password', '')
+    new_password = data.get('new_password', '')
+    
+    # Se verifica que la contraseña actual sea correcta usando check_password_hash para comparar con el hash almacenado en la base de datos
+    if not check_password_hash(db_user.password_hash, current_password):
+        response_body['message'] = 'Contraseña actual incorrecta'
+        return response_body, 401
+    
+    # Se validan las reglas de la nueva contraseña (ejemplo: no vacía, mínimo 8 caracteres)
+    if not new_password:
+        response_body['message'] = 'La nueva contraseña no puede estar vacía'
+        return response_body, 400
+    
+    if len(new_password) < 8:
+        response_body['message'] = 'La nueva contraseña debe tener al menos 8 caracteres'
+        return response_body, 400
+    
+    # Se verifica que la nueva contraseña no sea igual a la anteriror
+    if check_password_hash(db_user.password_hash, new_password):
+        response_body['message'] = 'La nueva contraseña no puede ser igual a la actual'
+        return response_body, 400
+    
+    
+    db_user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    
+    response_body['message'] = 'Contraseña actualizada exitosamente'
+    response_body['results'] = {
+        'user_id': user_id,
+        'password_changed': True
+    }
+    
+    return response_body, 200
 
-        response_body['results'] = row.serialize()
-        response_body['message'] = f'Usuario {user_id} actualizado'
-        return response_body, 200
+@api.route('/delete-my-account', methods=['POST'])
+@jwt_required()
+def delete_my_account():
 
-    if request.method == 'DELETE':
-        db.session.delete(row)
-        db.session.commit()
-
-        response_body['message'] = f'Usuario {user_id} eliminado'
-        return response_body, 200
-    return response_body, 404
-
+    response_body = {}
+    
+    # Se valida usuario autenticado y obtener datos del JWT con el helper correspondiente
+    user, response_body_validation, status = validate_active_user()
+    if response_body_validation:
+        return response_body_validation, status
+    
+    user_id = user.get('user_id')
+    
+    # Se valida el JSON y campos requeridos con el helper correspondiente 
+    data, error_response, status = validate_request_json(['password', 'confirmation'])
+    if error_response:
+        return error_response, status
+    
+    # Se busca el usuario en base de datos
+    db_user = db.session.execute(db.select(Users).where(Users.user_id == user_id)).scalar()
+    
+    if not db_user:
+        response_body['message'] = 'Usuario no encontrado'
+        return response_body, 404
+    
+    # Se obtienen datos de confirmación
+    password = data.get('password', '')
+    confirmation = data.get('confirmation', '').strip().lower()
+    
+    # Se verifica la contrasela del usuario 
+    if not check_password_hash(db_user.password_hash, password):
+        response_body['message'] = 'Contraseña incorrecta'
+        return response_body, 401
+    
+    # Se verifica el texto de confirmacion 
+    if confirmation != 'eliminar mi cuenta':
+        response_body['message'] = 'Debes escribir "eliminar mi cuenta" para confirmar'
+        return response_body, 400
+    
+    # Se elimina la cuenta de forma segura (desactivando el usuario, modificando el email para evitar conflictos futuros, y guardando la fecha de eliminación)
+    db_user.is_active = False
+    db_user.email = f"deleted_{user_id}_{db_user.email}"
+    db_user.deleted_at = datetime.now(timezone.utc)
+    
+    db.session.commit()
+    
+    response_body['message'] = 'Cuenta eliminada exitosamente'
+    response_body['results'] = {
+        'account_deleted': True,
+        'user_id': user_id,
+        'deleted_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    return response_body, 200
 
 @api.route('/courses-public', methods=['GET'])
 def courses_public():
     response_body = {}
 
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Courses)).scalars()
+        # Obtener parámetros de paginación
+        page = request.args.get('page', default=1, type=int)
+        per_page = request.args.get('per_page', default=20, type=int)
+        
+        # Validar parámetros
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 20
+        
+        # Calcular offset
+        offset = (page - 1) * per_page
+        
+        # Contar total de cursos activos
+        total_query = db.session.execute(
+            db.select(db.func.count()).select_from(Courses)
+            .where(Courses.is_active == True)
+        ).scalar()
+        
+        # Obtener cursos con paginación
+        rows = db.session.execute(
+            db.select(Courses)
+            .where(Courses.is_active == True)
+            .order_by(Courses.course_id)
+            .limit(per_page)
+            .offset(offset)
+        ).scalars()
+        
         results = [row.serialize() for row in rows]
+        
+        # Calcular páginas totales
+        total_pages = 0
+        if per_page > 0 and total_query:
+            total_pages = (total_query + per_page - 1) // per_page
+        
         response_body['results'] = results
         response_body['message'] = 'Listado de cursos'
+        response_body['count'] = len(results)
+        response_body['pagination'] = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_query,
+            'total_pages': total_pages
+        }
+        
         return response_body, 200
+    
     return response_body, 405
-
 
 @api.route('/courses-private', methods=['GET', 'POST'])
 @jwt_required()
 def courses_private():
     response_body = {}
 
-    # validacion de rol de usuario
-    user = get_jwt()
-    print(user)
-    if not user.get('is_active'):
-        response_body['message'] = 'Usuario no autorizado'
-        return response_body, 403
-
+    # 1. Validar usuario autenticado y obtener datos del JWT con el helper correspondiente
+    user, response_body_validation, status = validate_active_user()
+    if response_body_validation:
+        return response_body_validation, status
+    
+    is_admin = user.get('is_admin', False)
+    user_role = user.get('role')
+    user_id = user.get('user_id')
+    
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Courses)).scalars()
+        # Obtener parámetros de paginación del request
+        page = request.args.get('page', default=1, type=int)
+        per_page = request.args.get('per_page', default=20, type=int)
+        
+        # Validar parámetros
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 20
+        
+        offset = (page - 1) * per_page
+        
+        # Se cuenta el tototal de cursos para la pagainación
+        total_query = db.session.execute(db.select(db.func.count()).select_from(Courses)).scalar()
+        
+        # Obtener cursos con paginación
+        rows = db.session.execute(db.select(Courses).order_by(Courses.course_id).limit(per_page).offset(offset)).scalars()
+        
         results = [row.serialize() for row in rows]
+        
+        # Calcular páginas totales
+        total_pages = 0
+        if per_page > 0 and total_query:
+            total_pages = (total_query + per_page - 1) // per_page
+        
+        response_body['message'] = 'Listado de cursos (privado)'
+        response_body['count'] = len(results)
         response_body['results'] = results
-        response_body['message'] = 'Listado de cursos'
+        response_body['pagination'] = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_query,
+            'total_pages': total_pages
+        }
+        
         return response_body, 200
 
     if request.method == 'POST':
         # Solo admin y profesor pueden crear cursos
-        if not user['is_admin']:
-            if user['role'] != 'teacher':
-                response_body['message'] = 'No autorizado para crear cursos, no es admin ni teacher'
-                return response_body, 403
-        # Se valida que el request body no esté vacío
-        data = request.json
-        if not data:
-            response_body['message'] = 'Request body requerido'
+        if not is_admin and user_role != 'teacher':
+            response_body['results'] = {}
+            response_body['message'] = 'No autorizado para crear cursos, no es Administrador ni profesor'
+            return response_body, 403
+        
+        # Validar JSON y campos requeridos
+        data, error_response, status = validate_request_json(['title', 'price', 'points'])
+        if error_response:
+            return error_response, status
+        
+        # Se Valida el precio (puede ser 0, pero no menor que 0)
+        price = data.get('price')
+        if not isinstance(price, (int, float)) or price < 0:
+            response_body['results'] = {}
+            response_body['message'] = 'El precio debe ser un número mayor o igual a 0'
             return response_body, 400
-        # se valida que las claves requeridas estén en el request body
-        required_fields = ['title', 'price', 'points']
-        missing_fields = [
-            field for field in required_fields if field not in data]
-        if missing_fields:
-            response_body['message'] = 'Faltan campos requeridos'
-            response_body['missing_fields'] = missing_fields
+        
+        # Se validan los puentos (puede ser 0, pero no menor que 0)
+        points = data.get('points')
+        if not isinstance(points, (int, float)) or points < 0:
+            response_body['results'] = {}
+            response_body['message'] = 'Los puntos deben ser un número mayor o igual a 0'
             return response_body, 400
-        row = Courses(title=data.get('title', None),
-                      description=data.get(
-                          'description', 'info no disponible'),
-                      price=data.get('price'),
+        
+        row = Courses(title=data.get('title', '').strip(),
+                      description=data.get('description', 'info no disponible').strip(),
+                      price=price,
                       is_active=data.get('is_active', True),
-                      points=data.get('points'),
-                      created_by=user.get('email'))
+                      points=points,
+                      created_by=user_id)
+        
         db.session.add(row)
         db.session.commit()
 
+        response_body['message'] = 'Curso creado exitosamente'
         response_body['results'] = row.serialize()
-        response_body['message'] = 'Curso creado'
+        
         return response_body, 201
+    
     return response_body, 405
-
 
 @api.route('/courses-private/<int:course_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def course_private(course_id):
     response_body = {}
-    # validacion de rol de usuario
-    user = get_jwt()
-    print(user)
-    if not user.get('is_active'):
-        response_body['message'] = 'Usuario no autorizado'
-        return response_body, 403
 
-    # Se busca el curso por ID
-    row = db.session.execute(db.select(Courses).where(
-        Courses.course_id == course_id)).scalar()
-    # Se verifica si existe
+    # 1. Validar usuario autenticado y obtener datos del JWT con el helper correspondiente
+    user, response_body_validation, status = validate_active_user()
+    if response_body_validation:
+        return response_body_validation, status
+    
+    user_id = user.get('user_id')
+    is_admin = user.get('is_admin', False)
+    user_role = user.get('role')
+
+    # 2. Buscar curso por ID
+    row = db.session.execute(db.select(Courses).where(Courses.course_id == course_id)).scalar()
+    
     if not row:
         response_body['message'] = f'Curso {course_id} no encontrado'
         return response_body, 404
 
     if request.method == 'GET':
-        response_body['results'] = row.serialize()
         response_body['message'] = f'Detalles del curso {course_id}'
+        response_body['results'] = row.serialize()
         return response_body, 200
 
     if request.method == 'PUT':
-        # Solo admin y profesor pueden actualizar cursos
-        if not user['is_admin']:
-            if user['role'] != 'teacher':
-                response_body['message'] = 'No eres un Admin ni Teacher, no puedes actualizar cursos'
+        # Solo admin y el profesor que creó el curso puede actualizar
+        if not is_admin:
+            if user_role != 'teacher':
+                response_body['message'] = 'No eres un Administrado ni profesor, no puedes actualizar cursos'
+                return response_body, 403
+            # Profesor solo puede actualizar sus propios cursos
+            if row.created_by != user_id:
+                response_body['message'] = 'No puedes actualizar cursos de otros profesores'
                 return response_body, 403
 
-        data = request.json
-        # se valida que las claves requeridas estén en el request body
-        if not data:
-            response_body['message'] = 'Request body requerido para actualizar'
-            return response_body, 400
+        # Validar JSON
+        data, error_response, status = validate_request_json()
+        if error_response:
+            return error_response, status
 
-        row.title = data.get('title', row.title)
-        row.description = data.get('description', row.description)
-        row.price = data.get('price', row.price)
-        row.is_active = data.get('is_active', row.is_active)
-        row.points = data.get('points', row.points)
+        # Validaciones de datos
+        if 'price' in data:
+            price = data['price']
+            if not isinstance(price, (int, float)) or price < 0:
+                response_body['message'] = 'El precio debe debe de ser un número mayor o igual a 0'
+                return response_body, 400
+            row.price = price
+        
+        if 'points' in data:
+            points = data['points']
+            if not isinstance(points, (int, float)) or points < 0:
+                response_body['message'] = 'Los puntos deben ser un número mayor o igual a 0'
+                return response_body, 400
+            row.points = points
+        
+        # Actualizar otros campos
+        if 'title' in data:
+            row.title = data['title'].strip()
+        if 'description' in data:
+            row.description = data['description'].strip()
+        if 'is_active' in data:
+            row.is_active = bool(data['is_active'])
 
         db.session.commit()
+        
         response_body['results'] = row.serialize()
         response_body['message'] = f'Curso {course_id} Actualizado'
         return response_body, 200
 
     if request.method == 'DELETE':
-        # Solo admin y profesor pueden eliminar cursos
-        if not user.get('is_admin'):
-            if user.get('role') != 'teacher':
-                response_body['message'] = 'No eres un Admin ni Teacher, no puedes eliminar cursos'
+        # Solo admin y el profesor que creó el curso puede eliminar
+        if not is_admin:
+            if user_role != 'teacher':
+                response_body['message'] = 'No eres un administrador o profesor, no puedes eliminar cursos'
                 return response_body, 403
+            # Profesor solo puede eliminar sus propios cursos
+            if row.created_by != user_id:
+                response_body['message'] = 'No puedes eliminar cursos de otros profesores'
+                return response_body, 403
+        
         db.session.delete(row)
         db.session.commit()
+        
         response_body['message'] = f'Curso {course_id} Eliminado'
         return response_body, 200
+    
     return response_body, 405
-
 
 @api.route('/modules-public', methods=['GET'])
 def modules_public():
     response_body = {}
 
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Modules)).scalars()
+        # Obtener y validar parámetros
+        page = request.args.get('page', default=1, type=int)
+        per_page = request.args.get('per_page', default=20, type=int)
+        
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 20
+        
+        offset = (page - 1) * per_page
+        
+        # Contar total
+        total_query = db.session.execute(
+            db.select(db.func.count()).select_from(Modules)
+        ).scalar()
+        
+        # Obtener con paginación
+        rows = db.session.execute(
+            db.select(Modules)
+            .order_by(Modules.module_id)
+            .limit(per_page)
+            .offset(offset)
+        ).scalars()
+        
         results = [row.serialize() for row in rows]
+        
+        # Calcular páginas totales
+        total_pages = 0
+        if per_page > 0 and total_query:
+            total_pages = (total_query + per_page - 1) // per_page
+        
         response_body['results'] = results
         response_body['message'] = 'Listado de módulos'
+        response_body['count'] = len(results)
+        response_body['pagination'] = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_query,
+            'total_pages': total_pages
+        }
         return response_body, 200
-    return response_body, 404
-
+    
+    return response_body, 405
 
 @api.route('/modules-private', methods=['GET', 'POST'])
 @jwt_required()
 def modules_private():
     response_body = {}
 
-    # validacion de rol de usuario
-    user = get_jwt()
-    print(user)
-    if not user.get('is_active'):
-        response_body['message'] = 'Usuario no autorizado'
-        return response_body, 403
+    # 1. Validar usuario autenticado y obtener datos del JWT con el helper correspondiente
+    user, response_body_validation, status = validate_active_user()
+    if response_body_validation:
+        return response_body_validation, status
+    
+    user_id = user.get('user_id')
+    is_admin = user.get('is_admin', False)
+    user_role = user.get('role')
 
     if request.method == 'GET':
-        rows = db.session.execute(db.select(Modules)).scalars()
+        # Obtener parámetros de paginación
+        page = request.args.get('page', default=1, type=int)
+        per_page = request.args.get('per_page', default=20, type=int)
+        
+        # Validar parámetros
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 20
+        
+        offset = (page - 1) * per_page
+        
+        # Contar total
+        total_query = db.session.execute(db.select(db.func.count()).select_from(Modules)).scalar()
+        
+        # Obtener módulos con paginación
+        rows = db.session.execute(db.select(Modules).order_by(Modules.module_id).limit(per_page).offset(offset)).scalars()
+        
         results = [row.serialize() for row in rows]
-        response_body['results'] = results
+        
+        # Calcular páginas totales
+        total_pages = 0
+        if per_page > 0 and total_query:
+            total_pages = (total_query + per_page - 1) // per_page
+        
         response_body['message'] = 'Listado de módulos'
+        response_body['count'] = len(results)
+        response_body['results'] = results
+        response_body['pagination'] = {
+            'page': page,
+            'per_page': per_page,
+            'total': total_query,
+            'total_pages': total_pages
+        }
         return response_body, 200
 
     if request.method == 'POST':
-        # Solo admin y profesor pueden crear Modulos
-        if not user.get('is_admin'):
-            if user.get('role') != 'teacher':
-                response_body['message'] = 'No autorizado para crear módulos, no es admin ni teacher'
-                return response_body, 403
-        # Se valida que el request body no esté vacío
-        data = request.json
-        if not data:
-            response_body['message'] = 'Request body requerido'
-            return response_body, 400
-        # se valida que las claves requeridas estén en el request body
-        required_fields = ['title', 'order', 'points', 'course_id']
-        missing_fields = [
-            field for field in required_fields if field not in data]
-        if missing_fields:
-            response_body['message'] = 'Faltan campos requeridos'
-            response_body['missing_fields'] = missing_fields
-            return response_body, 400
-
-        # Se verifica que el curso exista
-        course = db.session.execute(
-            db.select(Courses).where(Courses.id == data.get('course_id'))).scalar()
+        # Solo admin y profesor pueden crear módulos
+        if not is_admin and user_role != 'teacher':
+            response_body['message'] = 'No autorizado para crear módulos, no es Administrador ni profesor'
+            return response_body, 403
+        
+        # Validar JSON y campos requeridos 
+        data, error_response, status = validate_request_json(['title', 'order', 'points', 'course_id'])
+        if error_response:
+            return error_response, status
+        
+        course_id = data.get('course_id')
+        
+        # Verificar que el curso exista 
+        course = db.session.execute(db.select(Courses).where(Courses.course_id == course_id)).scalar()
         if not course:
             response_body['message'] = 'Curso no encontrado'
             return response_body, 400
 
-        row = Modules(title=data.get('title'),
+        points = data.get('points')
+        if not isinstance(points, (int, float)) or points < 0:
+            response_body['message'] = 'Los puntos deben ser un número mayor o igual a 0'
+            return response_body, 400
+        
+        # Se vereifica el orden del módulo dentro del curso 
+        existing_module = db.session.execute(
+            db.select(Modules).where(Modules.course_id == course_id, Modules.order == data.get('order'))).scalar()
+        
+        if existing_module:
+            response_body['message'] = f'Ya existe un módulo con el orden {data.get("order")} en este curso'
+            return response_body, 409
+        
+        row = Modules(title=data.get('title', '').strip(),
                       order=data.get('order'),
-                      points=data.get('points'),
-                      course_id=data.get('course_id'),
-                      created_by=user.get('email'))
+                      points=points,
+                      course_id=course_id)
+        
         db.session.add(row)
         db.session.commit()
 
+        response_body['message'] = 'Módulo creado exitosamente'
         response_body['results'] = row.serialize()
-        response_body['message'] = 'Módulo creado'
+        
         return response_body, 201
+    
     return response_body, 405
-
 
 @api.route('/modules/<int:module_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def module_private(module_id):
     response_body = {}
-    # validacion de rol de usuario
-    user = get_jwt()
-    print(user)
-    if not user.get('is_active'):
-        response_body['message'] = 'Usuario no autorizado'
-        return response_body, 403
-
-    # Se busca el modulo por ID
-    row = db.session.execute(
-        db.select(Modules).where(Modules.module_id == module_id)).scalar()
+    
+    # se valida usuario autenticado y obtener datos del JWT con el helper correspondiente
+    user, response_body_validation, status = validate_active_user()
+    if response_body_validation:
+        return response_body_validation, status
+       
+    row = db.session.execute(db.select(Modules).where(Modules.module_id == module_id)).scalar()
+    
     # Se verifica si existe
     if not row:
         response_body['message'] = 'Módulo no encontrado'
@@ -360,7 +1229,16 @@ def module_private(module_id):
         # Solo admin y profesor pueden actualizar modulos
         if not user.get('is_admin'):
             if user.get('role') != 'teacher':
-                response_body['message'] = 'No eres un Admin ni Teacher, no puedes actualizar modulos'
+                response_body['message'] = 'Solo el administrador y profesor pueden actualizar módulos'
+                return response_body, 403
+        
+        # Solo el profesor que creó el curso al que pertenece el módulo puede actualizarlo
+        if user.get('role') == 'teacher' and not user.get('is_admin'):
+            
+            # Verificar que el módulo pertenezca a un curso del profesor
+            course_owner = db.session.execute(db.select(Courses).where(Courses.course_id == row.course_id,Courses.created_by == user.get('user_id'))).scalar()
+            if not course_owner:
+                response_body['message'] = 'No tienes permiso para modificar módulos de este curso'
                 return response_body, 403
 
         data = request.json
@@ -369,31 +1247,38 @@ def module_private(module_id):
             response_body['message'] = 'Request body requerido para actualizar'
             return response_body, 400
 
-        # se verifica si se está actualizando el course_id
+        # se verifica si se está actualizando
         if 'course_id' in data:
-            course = db.session.execute(
-                db.select(Courses).where(Courses.id == data.get('course_id'))
-            ).scalar()
+            course = db.session.execute(db.select(Courses).where(Courses.course_id == data.get('course_id'))).scalar()
             if not course:
                 response_body['message'] = 'Curso no encontrado'
                 return response_body, 400
+        
         # se verifica si se está actualizando el order
         target_course_id = data.get('course_id', row.course_id)
 
         if 'order' in data:
-            existing_module = db.session.execute(
-                db.select(Modules).where(Modules.course_id == target_course_id,
-                                         Modules.order == data.get('order'),
-                                         Modules.module_id != module_id)).scalar()
+            existing_module = db.session.execute(db.select(Modules).where(Modules.course_id == target_course_id,
+                                                                          Modules.order == data.get('order'),
+                                                                          Modules.module_id != module_id)).scalar()
             if existing_module:
-                response_body[
-                    'message'] = f'Ya existe un módulo con el orden {data.get("order")} en este curso'
+                response_body['message'] = f'Ya existe un módulo con el orden {data.get("order")} en este curso'
+                return response_body, 409
+        
+        if 'points' in data:
+            points = data['points']
+            if not isinstance(points, (int, float)) or points < 0:
+                response_body['message'] = 'Los puntos deben ser un número mayor o igual a 0'
                 return response_body, 400
-
-        row.title = data.get('title', row.title)
-        row.order = data.get('order', row.order)
-        row.points = data.get('points', row.points)
-        row.course_id = data.get('course_id', row.course_id)
+            row.points = points
+        
+        # Actualizar campos
+        if 'title' in data:
+            row.title = data.get('title', row.title)
+        if 'order' in data:
+            row.order = data.get('order', row.order)
+        if 'course_id' in data:
+            row.course_id = data.get('course_id', row.course_id)
 
         db.session.commit()
         response_body['results'] = row.serialize()
@@ -406,12 +1291,39 @@ def module_private(module_id):
             if user.get('role') != 'teacher':
                 response_body['message'] = 'No eres un Admin ni Teacher, no puedes eliminar Modulos'
                 return response_body, 403
+        
+        # Solo el profesor que creó el curso al que pertenece el módulo puede eliminarlo
+        if user.get('role') == 'teacher' and not user.get('is_admin'):
+            course_owner = db.session.execute(db.select(Courses)
+                                              .where(Courses.course_id == row.course_id,Courses.created_by == user.get('user_id'))).scalar()
+            if not course_owner:
+                response_body['message'] = 'No tienes permiso para eliminar módulos de este curso'
+                return response_body, 403
 
         db.session.delete(row)
         db.session.commit()
         response_body['message'] = f'Módulo {module_id} eliminado'
         return response_body, 200
+    
     return response_body, 405
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 @api.route('/lessons-public', methods=['GET'])
