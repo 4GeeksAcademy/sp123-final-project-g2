@@ -24,6 +24,7 @@ export const initialStore=()=>{
     course_details: {},
     module_details: {},
     lesson_details: {},
+    my_progress: [],
     achievements: [],
     alert: {
       text: "",
@@ -39,7 +40,9 @@ export default function storeReducer(store, action = {}) {
     
     case 'set_achievements':
       return {...store, achievements: Array.isArray(action.payload) ? action.payload: []};
-
+     
+    case "set_my_progress":
+      return {...store,my_progress: Array.isArray(action.payload) ? action.payload : []};  
 
     case "course_details":
       return { ...store, course_details: action.payload };

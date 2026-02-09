@@ -15,6 +15,7 @@ import { Courses } from "./pages/Courses.jsx";
 import { Modules } from "./pages/Modules.jsx";
 import { Lessons } from "./pages/Lessons.jsx";
 import { LessonDetails } from "./pages/LessonDetails.jsx";
+import { Dashboard } from "./pages/Dashboard.jsx";
 import { MyProgress } from "./pages/MyProgress.jsx";
 import { Achievements } from "./pages/Achievements.jsx";
 
@@ -41,6 +42,7 @@ export const router = createBrowserRouter(
         <Route path="/modules" element={<Modules />} />
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/lesson-details" element={<LessonDetails />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/my-progress" element={<MyProgress />} />
         <Route path="/achievements" element={<Achievements />} />
       </Route>
