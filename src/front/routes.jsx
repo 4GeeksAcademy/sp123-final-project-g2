@@ -18,7 +18,9 @@ import { LessonDetails } from "./pages/LessonDetails.jsx";
 import { Dashboard } from "./pages/Dashboard.jsx";
 import { MyProgress } from "./pages/MyProgress.jsx";
 import { Achievements } from "./pages/Achievements.jsx";
-
+import { CourseDetail } from "./pages/CourseDetail.jsx";
+import { Profile } from "./pages/Profile.jsx";
+import { QuienesSomos } from "./pages/QuienesSomos.jsx";
 
 
 export const router = createBrowserRouter(
@@ -45,6 +47,9 @@ export const router = createBrowserRouter(
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/my-progress" element={<MyProgress />} />
         <Route path="/achievements" element={<Achievements />} />
+        <Route path="/courses/:courseId" element={<CourseDetail />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/quienes-somos" element={<QuienesSomos />} />
       </Route>
     )
 );

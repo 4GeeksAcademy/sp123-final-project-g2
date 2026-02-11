@@ -1,42 +1,55 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
-import { CourseCard } from "../components/CourseCard.jsx";
+import useGlobalReducer from "../hooks/useGlobalReducer";
+import { CourseCard } from "../components/CourseCard";
+import { CourseForm } from "../components/CourseForm";
 
 export const Courses = () => {
-  const { store, dispatch } = useGlobalReducer();
+  const { store } = useGlobalReducer();
   const [courses, setCourses] = useState([]);
-  const navigate = useNavigate();
+  const [showForm, setShowForm] = useState(false);
 
   const getCourses = async () => {
-    const response = await fetch(
-      `${import.meta.env.VITE_BACKEND_URL}/api/courses`
-    );
-    const data = await response.json();
+    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/courses`);
+    const data = await res.json();
     setCourses(data);
   };
 
-  const handleDetails = (course) => {
-    dispatch({ type: "course_details", payload: course });
-    navigate("/lessons");
+  const handleCreateCourse = async (courseData) => {
+    await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/courses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${store.token}`
+      },
+      body: JSON.stringify(courseData)
+    });
+
+    setShowForm(false);
+    getCourses();
   };
 
   useEffect(() => {
-    dispatch({ type: "course_details", payload: {} });
     getCourses();
   }, []);
 
   return (
     <div className="container mt-4">
-      <h1 className="text-center">Courses</h1>
+      <h1 className="text-center mb-4">Cursos</h1>
 
-      <div className="row">
+      {store.isLogged && (
+        <button
+          className="btn btn-primary mb-3"
+          onClick={() => setShowForm(!showForm)}
+        >
+          ➕ Crear curso
+        </button>
+      )}
+
+      {showForm && <CourseForm onSubmit={handleCreateCourse} />}
+
+      <div className="row mt-4">
         {courses.map(course => (
-          <CourseCard
-            key={course.course_id}
-            course={course}
-            onDetails={handleDetails}
-          />
+          <CourseCard key={course.course_id} course={course} />
         ))}
       </div>
     </div>
