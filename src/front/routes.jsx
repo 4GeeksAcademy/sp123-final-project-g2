@@ -9,6 +9,21 @@ import { Layout } from "./pages/Layout";
 import { Home } from "./pages/Home";
 import { Single } from "./pages/Single";
 import { Demo } from "./pages/Demo";
+import { Login } from "./pages/Login.jsx";
+import { Signup } from "./pages/Signup.jsx";
+import { Courses } from "./pages/Courses.jsx";
+import { Modules } from "./pages/Modules.jsx";
+import { Lessons } from "./pages/Lessons.jsx";
+import { LessonDetails } from "./pages/LessonDetails.jsx";
+import { Dashboard } from "./pages/Dashboard.jsx";
+import { MyProgress } from "./pages/MyProgress.jsx";
+import { Achievements } from "./pages/Achievements.jsx";
+import { CourseDetail } from "./pages/CourseDetail.jsx";
+import { Profile } from "./pages/Profile.jsx";
+import { QuienesSomos } from "./pages/QuienesSomos.jsx";
+import { PublicCourses } from "./pages/PublicCourses.jsx";
+
+
 
 export const router = createBrowserRouter(
     createRoutesFromElements(
@@ -25,6 +40,19 @@ export const router = createBrowserRouter(
         <Route path= "/" element={<Home />} />
         <Route path="/single/:theId" element={ <Single />} />  {/* Dynamic route for single items */}
         <Route path="/demo" element={<Demo />} />
+        <Route path="/login" element={<Login/>} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/courses-public" element={<PublicCourses />} />
+        <Route path="/courses" element={<Courses />} />
+        <Route path="/modules" element={<Modules />} />
+        <Route path="/lessons" element={<Lessons />} />
+        <Route path="/lesson-details" element={<LessonDetails />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/my-progress" element={<MyProgress />} />
+        <Route path="/achievements" element={<Achievements />} />
+        <Route path="/courses/:courseId" element={<CourseDetail />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/quienes-somos" element={<QuienesSomos />} />
       </Route>
     )
 );
