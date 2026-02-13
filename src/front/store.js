@@ -16,28 +16,29 @@ export const initialStore=()=>{
     token: '',
     current_user: {},
     isLogged:false,
-    alert: {
-      text: '',
-      color: '',
-      display: false
-    },
     course_details: {},
     module_details: {},
     lesson_details: {},
     my_progress: [],
     achievements: [],
-    alert: {
-      text: "",
-      color: "",
+     alert: {
+      text: '',
+      color: '',
       display: false
     }
-
+    
   }
 }
 
 export default function storeReducer(store, action = {}) {
   switch(action.type){
-    
+
+    case "set_my_progress":
+      return {...store, my_progress: action.payload };
+
+    case "set_achievements":
+      return {...store, achievements: action.payload };
+
     case 'set_achievements':
       return {...store, achievements: Array.isArray(action.payload) ? action.payload: []};
      
@@ -68,17 +69,13 @@ export default function storeReducer(store, action = {}) {
 
 
     case 'set_hello':
-      return {
-        ...store,
-        message: action.payload
-      };
+      return {...store, message: action.payload };
       
     case 'add_task':
 
       const { id,  color } = action.payload
 
-      return {
-        ...store,
+      return {...store,
         todos: store.todos.map((todo) => (todo.id === id ? { ...todo, background: color } : todo))
       };
     default:
