@@ -2276,8 +2276,7 @@ def user_points():
             return simple_error_response('Faltan campos requeridos', 400)
         
         user_exists = db.session.execute(
-            db.select(Users).where(Users.user_id == data.get('user_id'))
-        ).scalar()
+            db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
         
         if not user_exists:
             # HELPER: simple_error_response - Usuario no encontrado
@@ -2606,12 +2605,23 @@ def user_achievements():
     user_role = user.get('role')
     
     if request.method == 'GET':
-        rows = db.session.execute(db.select(UserAchievements)).scalars()
+
+        # Alumno solo puede ver sus propios logros
+        if user.get('role') == 'alumno':
+            rows = db.session.execute(
+                db.select(UserAchievements).where(
+                    UserAchievements.user_id == user.get('id') )).scalars().all()
+        else:
+            # Admin y Teacher ven todos
+            rows = db.session.execute(
+                db.select(UserAchievements)).scalars().all()
+
         results = [row.serialize() for row in rows]
         
         # HELPER: simple_success_response - Lista de logros de usuario
         return simple_success_response(results, 'Listado de logros obtenidos por usuarios')
 
+    # POST 
     if request.method == 'POST':
         if not is_admin and user_role != 'teacher':
             # HELPER: simple_error_response - Sin permisos para asignar
