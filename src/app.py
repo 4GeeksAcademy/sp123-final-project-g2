@@ -1,6 +1,7 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
+
 from flask_cors import CORS
 import os
 from flask import Flask, request, jsonify, url_for, send_from_directory
@@ -12,6 +13,12 @@ from api.routes import api
 from api.admin import setup_admin
 from api.commands import setup_commands
 from flask_jwt_extended import JWTManager
+
+import cloudinary
+import cloudinary.uploader
+
+# AÑADE ESTA IMPORTACIÓN DE STRIPE AQUÍ
+import stripe
 
 
 ENV = "development" if os.getenv("FLASK_DEBUG") == "1" else "production"
@@ -35,6 +42,12 @@ app.register_blueprint(api, url_prefix='/api')  # Add all endpoints form the API
 # Setup the Flask-JWT-Extended extension
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 jwt = JWTManager(app)
+
+
+# Configuración de Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
 
 
 # Handle/serialize errors like a JSON object
@@ -65,3 +78,11 @@ def serve_any_other_file(path):
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3001))
     app.run(host='0.0.0.0', port=PORT, debug=True)
+
+# Configuración de Cloudinary
+cloudinary.config( 
+  cloud_name = "TU_CLOUD_NAME", 
+  api_key = "TU_API_KEY", 
+  api_secret = "TU_API_SECRET",
+  secure = True
+)

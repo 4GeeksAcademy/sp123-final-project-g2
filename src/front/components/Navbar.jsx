@@ -5,7 +5,16 @@ export const Navbar = () => {
   const { store, dispatch } = useGlobalReducer();
   const navigate = useNavigate();
 
-  const handleRegistro = () => navigate("/signup");
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+
+    dispatch({ type: "handle_token", payload: "" });
+    dispatch({ type: "handle_user", payload: {} });
+    dispatch({ type: "handle_isLogged", payload: false });
+
+    navigate("/");
+  };
+
 
   const handleLogin = () => {
     if (store.isLogged) {
@@ -24,7 +33,6 @@ export const Navbar = () => {
       navigate("/login");
     }
   };
-
   return (
     <nav
       className="navbar navbar-expand-lg navbar-dark shadow px-4"
@@ -57,25 +65,33 @@ export const Navbar = () => {
           </li>
 
           {store.isLogged && (
-            <>
-              <li className="nav-item">
-                <Link className="nav-link" to="/courses">
-                  📚 Cursos
-                </Link>
-              </li>
-
-              <li className="nav-item">
-                <Link className="nav-link" to="/my-progress">
-                  📈 Mi progreso
-                </Link>
-              </li>
-
-              <li className="nav-item">
-                <Link className="nav-link" to="/achievements">
-                  🏆 Logros
-                </Link>
-              </li>
-            </>
+            <li className="nav-item dropdown">
+              <a
+                className="nav-link dropdown-toggle text-white"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+              >
+                📚 Mis Cursos
+              </a>
+              <ul className="dropdown-menu">
+                <li>
+                  <Link className="dropdown-item" to="/courses">
+                    Cursos
+                  </Link>
+                </li>
+                <li>
+                  <Link className="dropdown-item" to="/my-progress">
+                    Mi progreso
+                  </Link>
+                </li>
+                <li>
+                  <Link className="dropdown-item" to="/achievements">
+                    Logros
+                  </Link>
+                </li>
+              </ul>
+            </li>
           )}
 
         </ul>

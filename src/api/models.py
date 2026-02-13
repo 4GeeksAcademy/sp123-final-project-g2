@@ -19,6 +19,9 @@ class Users(db.Model):
     registration_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     trial_end_date = db.Column(db.DateTime, nullable=True)
     last_access = db.Column(db.DateTime, nullable=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)  # ✅ AGREGADO
+    original_email = db.Column(db.String(100), nullable=True)  # ✅ AGREGADO
+    deletion_uuid = db.Column(db.String(36), nullable=True)  # ✅ AGREGADO
 
     def __repr__(self):
         return f'<User: {self.user_id} - {self.first_name} {self.last_name}>'
@@ -35,7 +38,9 @@ class Users(db.Model):
             "is_admin": self.is_admin,
             "registration_date": self.registration_date.isoformat() if self.registration_date else None,
             "trial_end_date": self.trial_end_date.isoformat() if self.trial_end_date else None,
-            "last_access": self.last_access.isoformat() if self.last_access else None
+            "last_access": self.last_access.isoformat() if self.last_access else None,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
+            "original_email": self.original_email
         }
 
 
@@ -47,10 +52,12 @@ class Courses(db.Model):
     price = db.Column(db.Numeric(10, 2), nullable=False)
     is_active = db.Column(db.Boolean(), default=True, nullable=False)
     creation_date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    points = db.Column(db.Integer)
+    points = db.Column(db.Integer, default=0, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.user_id'))
-    created_to = db.relationship('Users', foreign_keys=[created_by],
-                                 backref=db.backref('users_to_courses', lazy='select'))
+    
+    
+    creator = db.relationship('Users', foreign_keys=[created_by],
+                              backref=db.backref('courses_created', lazy='dynamic'))
 
     def __repr__(self):
         return f'<Course {self.course_id} - {self.title}>'
@@ -60,20 +67,20 @@ class Courses(db.Model):
             "course_id": self.course_id,
             "title": self.title,
             "description": self.description,
-            "price": float(self.price) if self.price else None,
+            "price": float(self.price) if self.price else 0,
             "is_active": self.is_active,
-            "created_by": self.created_by,
+            "created_by": self.created_by,  # Solo ID
             "creation_date": self.creation_date.isoformat() if self.creation_date else None,
             "points": self.points
         }
-
 
 class Modules(db.Model):
     __tablename__ = "modules"
     module_id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(150), nullable=False)
-    order = db.Column(db.Integer)
-    points = db.Column(db.Integer)
+    order = db.Column(db.Integer, nullable=False)  # ✅ CAMBIADO: nullable=False
+    points = db.Column(db.Integer, default=0, nullable=False)  # ✅ CAMBIADO: default=0, nullable=False
+    is_active = db.Column(db.Boolean(), default=True, nullable=False)  # ✅ AGREGADO
     course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id', ondelete='CASCADE'))
     course_to = db.relationship('Courses', foreign_keys=[course_id],
                                 backref=db.backref('modules_to', lazy='select'))
@@ -91,6 +98,7 @@ class Modules(db.Model):
             "title": self.title,
             "order": self.order,
             "points": self.points,
+            "is_active": self.is_active,  # ✅ AGREGADO
             "course_id": self.course_id
         }
 
@@ -98,12 +106,13 @@ class Modules(db.Model):
 class Lessons(db.Model):
     __tablename__ = "lessons"
     lesson_id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(150), nullable=True)
-    content = db.Column(db.Text, nullable=True)
+    title = db.Column(db.String(150), nullable=False)  # ✅ CAMBIADO: nullable=False
+    content = db.Column(db.Text, nullable=False)  # ✅ CAMBIADO: nullable=False
     learning_objective = db.Column(db.Text, nullable=True)
     signs_taught = db.Column(db.String(600), unique=True, nullable=True)
-    order = db.Column(db.Integer)
+    order = db.Column(db.Integer, nullable=False)  # ✅ CAMBIADO: nullable=False
     trial_visible = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean(), default=True, nullable=False)  # ✅ AGREGADO
     module_id = db.Column(db.Integer, db.ForeignKey('modules.module_id', ondelete='CASCADE'))
     module_to = db.relationship('Modules', foreign_keys=[module_id],
                                 backref=db.backref('lessons_list', lazy='select'))
@@ -124,6 +133,7 @@ class Lessons(db.Model):
             "signs_taught": self.signs_taught,
             "order": self.order,
             "trial_visible": self.trial_visible,
+            "is_active": self.is_active,  # ✅ AGREGADO
             "module_id": self.module_id
         }
 
