@@ -18,33 +18,38 @@ export const Navbar = () => {
   return (
     <nav
       className="navbar navbar-expand-lg shadow px-4"
-      style={{ backgroundColor: "#4A90E2" }}
-    >
-      {/* BRAND */}
+      style={{ backgroundColor: "#4A90E2" }}>
+      
       <Link to="/" className="navbar-brand fw-bold fs-4 text-white">
-        🤟 SignaLearn
+        +VO
       </Link>
-
       <button
         className="navbar-toggler"
         type="button"
         data-bs-toggle="collapse"
-        data-bs-target="#mainNavbar"
-      >
+        data-bs-target="#mainNavbar" >
+
         <span className="navbar-toggler-icon"></span>
       </button>
 
       <div className="collapse navbar-collapse" id="mainNavbar">
-        {/* LEFT MENU */}
+
         <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-          {/* Siempre disponible */}
+
           <li className="nav-item">
             <Link className="nav-link text-white" to="/quienes-somos">
               ℹ️ Sobre nosotros
             </Link>
           </li>
 
-          {/* Solo usuarios logueados */}
+          {!store.isLogged && (
+            <li className="nav-item">
+              <Link className="nav-link text-white" to="/courses-public">
+                📘 Cursos disponibles
+              </Link>
+            </li>
+          )}
+
           {store.isLogged && (
             <li className="nav-item dropdown">
               <a
@@ -76,20 +81,25 @@ export const Navbar = () => {
           )}
         </ul>
 
-        {/* RIGHT SIDE */}
         <div className="d-flex align-items-center gap-3">
-          {store.isLogged && (
+
+          {store.isLogged ? (
             <>
               <span className="text-white">
-                👋 Hola, <strong>{store.current_user?.first_name || "Usuario"}</strong>
+                👋 Hola,{" "}
+                <strong>
+                  {store.current_user?.first_name || "Usuario"}
+                </strong>
               </span>
-              <button onClick={handleLogout} className="btn btn-light btn-sm">
+
+              <button
+                onClick={handleLogout}
+                className="btn btn-light btn-sm"
+              >
                 Cerrar sesión
               </button>
             </>
-          )}
-
-          {!store.isLogged && (
+          ) : (
             <>
               <Link to="/login" className="nav-link text-white">
                 Iniciar sesión

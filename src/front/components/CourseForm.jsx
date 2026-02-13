@@ -1,30 +1,38 @@
 import { useState } from "react";
 
-export const CourseForm = ({ onSubmit, initialData = {} }) => {
+export const CourseForm = ({ onSubmit }) => {
   const [formData, setFormData] = useState({
-    title: initialData.title || "",
-    description: initialData.description || "",
-    level: initialData.level || "basic"
+    title: "",
+    description: "",
+    price: "",
+    points: "",
+    is_active: true
   });
 
-  const handleChange = e => {
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: type === "checkbox" ? checked : value
     });
   };
 
-  const handleSubmit = e => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      price: parseFloat(formData.price),
+      points: parseInt(formData.points)
+    });
   };
 
   return (
     <form onSubmit={handleSubmit} className="card p-4 shadow">
-      <h4 className="mb-3">Curso</h4>
+      <h4>Crear Curso</h4>
 
       <div className="mb-3">
-        <label className="form-label">Título</label>
+        <label>Título</label>
         <input
           type="text"
           name="title"
@@ -36,32 +44,55 @@ export const CourseForm = ({ onSubmit, initialData = {} }) => {
       </div>
 
       <div className="mb-3">
-        <label className="form-label">Descripción</label>
+        <label>Descripción</label>
         <textarea
           name="description"
           className="form-control"
-          rows="3"
           value={formData.description}
           onChange={handleChange}
+          required
         />
       </div>
 
       <div className="mb-3">
-        <label className="form-label">Nivel</label>
-        <select
-          name="level"
-          className="form-select"
-          value={formData.level}
+        <label>Precio</label>
+        <input
+          type="number"
+          name="price"
+          className="form-control"
+          value={formData.price}
           onChange={handleChange}
-        >
-          <option value="basic">Básico</option>
-          <option value="intermediate">Intermedio</option>
-          <option value="advanced">Avanzado</option>
-        </select>
+          required
+        />
+      </div>
+
+      <div className="mb-3">
+        <label>Puntos que otorga</label>
+        <input
+          type="number"
+          name="points"
+          className="form-control"
+          value={formData.points}
+          onChange={handleChange}
+          required
+        />
+      </div>
+
+      <div className="form-check mb-3">
+        <input
+          type="checkbox"
+          name="is_active"
+          className="form-check-input"
+          checked={formData.is_active}
+          onChange={handleChange}
+        />
+        <label className="form-check-label">
+          Curso activo
+        </label>
       </div>
 
       <button className="btn btn-primary w-100">
-        Guardar curso
+        Guardar Curso
       </button>
     </form>
   );

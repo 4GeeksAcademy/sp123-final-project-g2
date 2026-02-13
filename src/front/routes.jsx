@@ -21,6 +21,8 @@ import { Achievements } from "./pages/Achievements.jsx";
 import { CourseDetail } from "./pages/CourseDetail.jsx";
 import { Profile } from "./pages/Profile.jsx";
 import { QuienesSomos } from "./pages/QuienesSomos.jsx";
+import { PublicCourses } from "./pages/PublicCourses.jsx";
+
 
 
 export const router = createBrowserRouter(
@@ -40,6 +42,7 @@ export const router = createBrowserRouter(
         <Route path="/demo" element={<Demo />} />
         <Route path="/login" element={<Login/>} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/courses-public" element={<PublicCourses />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/modules" element={<Modules />} />
         <Route path="/lessons" element={<Lessons />} />
