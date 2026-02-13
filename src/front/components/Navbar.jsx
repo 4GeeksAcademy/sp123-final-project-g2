@@ -115,16 +115,16 @@ export const Navbar = () => {
           >
             {store.isLogged ? "Cerrar sesión" : "Iniciar sesión"}
           </button>
-
+{/* 
           {!store.isLogged && (
             <button
               onClick={handleRegistro}
               className="btn btn-warning fw-bold rounded-pill px-3"
             >
               Registro
-            </button>
+            </button> 
           )}
-
+ */}
         </div>
       </div>
     </nav>
