@@ -581,6 +581,7 @@ def register():
         is_admin=False,
         registration_date=now,
         trial_end_date=trial_end_date,
+        deleted_at=None,
         last_access=None
     )
     
