@@ -1,5 +1,5 @@
 """
-Script para poblar la base de datos con datos de prueba
+Script para poblar la base de datos con datos de prueba - LENGUA DE SEÑAS
 """
 import sys
 import os
@@ -8,7 +8,7 @@ import random
 from werkzeug.security import generate_password_hash
 
 # ============================================
-# CONFIGURACIÓN DE IMPORTS - VERSIÓN QUE NO TOCA APP.PY
+# CONFIGURACIÓN DE IMPORTS
 # ============================================
 
 # Obtener la ruta absoluta del proyecto
@@ -18,18 +18,16 @@ root_dir = os.path.dirname(parent_dir)                     # raíz del proyecto
 
 # Agregar TODAS las rutas necesarias al path de Python
 sys.path.insert(0, root_dir)      # Para importar src
-sys.path.insert(0, parent_dir)     # Para importar api (¡esto es crucial!)
+sys.path.insert(0, parent_dir)     # Para importar api
 sys.path.insert(0, current_dir)    # Para importar desde api/
 
 # Ahora intentamos importar la app
 try:
-    # Intento 1: Como está en app.py (con imports relativos a 'api')
     from src.app import app
     print("✅ App importada correctamente")
 except ImportError as e:
     print(f"⚠️ Error en primer intento: {e}")
     try:
-        # Intento 2: Si no funciona, importamos directamente
         import sys
         sys.path.insert(0, os.path.join(root_dir, 'src'))
         from app import app
@@ -85,7 +83,7 @@ def run_seed():
     """Función principal que ejecuta la semilla"""
     
     print(f"\n{Colors.GREEN}{'='*60}{Colors.END}")
-    print(f"{Colors.GREEN}🌱 INICIANDO SEMILLA DE BASE DE DATOS{Colors.END}")
+    print(f"{Colors.GREEN}🌱 INICIANDO SEMILLA DE LENGUA DE SEÑAS{Colors.END}")
     print(f"{Colors.GREEN}{'='*60}{Colors.END}\n")
     
     # Limpiar datos existentes
@@ -99,8 +97,8 @@ def run_seed():
     # 2 Administradores
     admin1 = Users(
         first_name="Admin", 
-        last_name="Principal", 
-        email="admin1@example.com",
+        last_name="Señas", 
+        email="admin1@lenguaseñas.com",
         password_hash=common_password, 
         role="teacher", 
         is_admin=True, 
@@ -112,8 +110,8 @@ def run_seed():
     
     admin2 = Users(
         first_name="Admin", 
-        last_name="Secundario", 
-        email="admin2@example.com",
+        last_name="Inclusivo", 
+        email="admin2@lenguaseñas.com",
         password_hash=common_password, 
         role="teacher", 
         is_admin=True, 
@@ -123,11 +121,11 @@ def run_seed():
     )
     usuarios.append(admin2)
     
-    # 2 Profesores
+    # 2 Profesores (Intérpretes)
     teacher1 = Users(
-        first_name="Carlos", 
-        last_name="Rodríguez", 
-        email="carlos.rodriguez@example.com",
+        first_name="María", 
+        last_name="Sordomuda", 
+        email="maria.sordomuda@example.com",
         password_hash=common_password, 
         role="teacher", 
         is_admin=False, 
@@ -138,9 +136,9 @@ def run_seed():
     usuarios.append(teacher1)
     
     teacher2 = Users(
-        first_name="Laura", 
-        last_name="Martínez", 
-        email="laura.martinez@example.com",
+        first_name="Carlos", 
+        last_name="Intérprete", 
+        email="carlos.interprete@example.com",
         password_hash=common_password, 
         role="teacher", 
         is_admin=False, 
@@ -153,8 +151,8 @@ def run_seed():
     # 2 Estudiantes
     student1 = Users(
         first_name="Ana", 
-        last_name="García", 
-        email="ana.garcia@example.com",
+        last_name="Aprende", 
+        email="ana.aprende@example.com",
         password_hash=common_password, 
         role="student", 
         is_admin=False, 
@@ -166,8 +164,8 @@ def run_seed():
     
     student2 = Users(
         first_name="Miguel", 
-        last_name="Sánchez", 
-        email="miguel.sanchez@example.com",
+        last_name="Silente", 
+        email="miguel.silente@example.com",
         password_hash=common_password, 
         role="student", 
         is_admin=False, 
@@ -180,8 +178,8 @@ def run_seed():
     # 2 Usuarios Demo
     demo1 = Users(
         first_name="Pedro", 
-        last_name="Demo", 
-        email="pedro.demo@example.com",
+        last_name="DemoSeñas", 
+        email="pedro.demo@lenguaseñas.com",
         password_hash=common_password, 
         role="demo", 
         is_admin=False, 
@@ -194,8 +192,8 @@ def run_seed():
     
     demo2 = Users(
         first_name="María", 
-        last_name="Demo", 
-        email="maria.demo@example.com",
+        last_name="DemoSeñas", 
+        email="maria.demo@lenguaseñas.com",
         password_hash=common_password, 
         role="demo", 
         is_admin=False, 
@@ -209,8 +207,8 @@ def run_seed():
     # 1 Usuario inactivo
     inactive_user = Users(
         first_name="Usuario", 
-        last_name="Inactivo", 
-        email="deleted_user@example.com",
+        last_name="InactivoSeñas", 
+        email="deleted@lenguaseñas.com",
         password_hash=common_password, 
         role="student", 
         is_admin=False, 
@@ -218,7 +216,7 @@ def run_seed():
         current_points=100, 
         registration_date=datetime.now(timezone.utc) - timedelta(days=100),
         deleted_at=datetime.now(timezone.utc) - timedelta(days=10),
-        original_email="original@example.com", 
+        original_email="original@lenguaseñas.com", 
         deletion_uuid="abc12345"
     )
     usuarios.append(inactive_user)
@@ -233,68 +231,74 @@ def run_seed():
     student_ids = [student1.user_id, student2.user_id]
     demo_ids = [demo1.user_id, demo2.user_id]
     
-    # --- PASO 3: Cursos ---
-    print_info("Creando cursos...")
+    # --- PASO 3: Cursos de Lengua de Señas ---
+    print_info("Creando cursos de lengua de señas...")
     cursos = []
     
-    curso1_teacher1 = Courses(
-        title="Python desde Cero", 
-        description="Aprende Python desde lo más básico.",
+    # Curso 1: Nivel Básico (Profesor 1 - María Sordomuda)
+    curso1 = Courses(
+        title="Lengua de Señas Nivel Básico", 
+        description="Aprende los fundamentos de la lengua de señas. Ideal para principiantes.",
         price=49.99, 
         is_active=True, 
         creation_date=datetime.now(timezone.utc) - timedelta(days=50),
         points=500, 
         created_by=teacher_ids[0]
     )
-    cursos.append(curso1_teacher1)
+    cursos.append(curso1)
     
-    curso2_teacher1 = Courses(
-        title="Flask Avanzado", 
-        description="Domina Flask y crea APIs profesionales.",
+    # Curso 2: Nivel Intermedio (Profesor 1 - María Sordomuda)
+    curso2 = Courses(
+        title="Lengua de Señas Nivel Intermedio", 
+        description="Amplía tu vocabulario y mejora tu fluidez en conversaciones cotidianas.",
         price=79.99, 
         is_active=True, 
         creation_date=datetime.now(timezone.utc) - timedelta(days=30),
         points=750, 
         created_by=teacher_ids[0]
     )
-    cursos.append(curso2_teacher1)
+    cursos.append(curso2)
     
-    curso3_teacher1 = Courses(
-        title="SQL para Desarrolladores", 
-        description="Aprende SQL desde cero.",
-        price=39.99, 
+    # Curso 3: Nivel Avanzado (Profesor 1 - María Sordomuda)
+    curso3 = Courses(
+        title="Lengua de Señas Nivel Avanzado", 
+        description="Domina estructuras complejas y expresiones idiomáticas en lengua de señas.",
+        price=99.99, 
         is_active=True, 
         creation_date=datetime.now(timezone.utc) - timedelta(days=20),
-        points=400, 
+        points=900, 
         created_by=teacher_ids[0]
     )
-    cursos.append(curso3_teacher1)
+    cursos.append(curso3)
     
-    curso1_teacher2 = Courses(
-        title="React Moderno", 
-        description="Aprende React con Hooks y Context API.",
-        price=89.99, 
+    # Curso 4: Vocabulario por Temas (Profesor 2 - Carlos Intérprete)
+    curso4 = Courses(
+        title="Vocabulario de Señas: Familia y Hogar", 
+        description="Aprende señas relacionadas con la familia, el hogar y la vida diaria.",
+        price=39.99, 
         is_active=True, 
         creation_date=datetime.now(timezone.utc) - timedelta(days=40),
-        points=800, 
+        points=400, 
         created_by=teacher_ids[1]
     )
-    cursos.append(curso1_teacher2)
+    cursos.append(curso4)
     
-    curso2_teacher2 = Courses(
-        title="TypeScript Total", 
-        description="TypeScript desde cero hasta avanzado.",
-        price=69.99, 
+    # Curso 5: Vocabulario Profesional (Profesor 2 - Carlos Intérprete)
+    curso5 = Courses(
+        title="Lengua de Señas para el Trabajo", 
+        description="Vocabulario profesional para entornos laborales y entrevistas.",
+        price=59.99, 
         is_active=True, 
         creation_date=datetime.now(timezone.utc) - timedelta(days=25),
-        points=600, 
+        points=550, 
         created_by=teacher_ids[1]
     )
-    cursos.append(curso2_teacher2)
+    cursos.append(curso5)
     
+    # Curso 6: Curso Gratuito Básico (Profesor 2 - Carlos Intérprete)
     curso_gratis = Courses(
-        title="HTML y CSS para Principiantes", 
-        description="Curso gratuito de fundamentos.",
+        title="Introducción a la Lengua de Señas", 
+        description="Curso gratuito para conocer el alfabeto manual y saludos básicos.",
         price=0.00, 
         is_active=True, 
         creation_date=datetime.now(timezone.utc) - timedelta(days=60),
@@ -303,9 +307,10 @@ def run_seed():
     )
     cursos.append(curso_gratis)
     
+    # Curso inactivo
     curso_inactivo = Courses(
-        title="Curso Descontinuado", 
-        description="Curso inactivo.",
+        title="Curso Antiguo de Señas (Descontinuado)", 
+        description="Versión anterior del curso, ya no está disponible.",
         price=29.99, 
         is_active=False, 
         creation_date=datetime.now(timezone.utc) - timedelta(days=200),
@@ -320,7 +325,7 @@ def run_seed():
     print_success(f"{len(cursos)} cursos creados")
     
     # --- PASO 4: Módulos ---
-    print_info("Creando módulos...")
+    print_info("Creando módulos de lengua de señas...")
     modulos = []
     
     def crear_modulos_para_curso(curso_id, titulos, puntos=None):
@@ -335,108 +340,184 @@ def run_seed():
                 course_id=curso_id
             ))
     
-    crear_modulos_para_curso(curso1_teacher1.course_id,
-        ["Introducción", "Variables", "Estructuras", "Funciones", "Listas", "Archivos"],
+    # Módulos para Curso Básico
+    crear_modulos_para_curso(curso1.course_id,
+        ["Alfabeto Manual", "Saludos y Presentaciones", "Números y Colores", "Familia", "Emociones", "Preguntas Básicas"],
         [50, 75, 100, 125, 150, 200])
     
-    crear_modulos_para_curso(curso2_teacher1.course_id,
-        ["Introducción", "Rutas", "BD SQLAlchemy", "JWT", "APIs REST", "Despliegue"],
-        [80, 100, 150, 200, 250, 300])
+    # Módulos para Curso Intermedio
+    crear_modulos_para_curso(curso2.course_id,
+        ["Verbos Comunes", "Tiempos Verbales", "Descripciones", "Alimentos y Bebidas", "Ropa y Accesorios", "Lugares y Direcciones"],
+        [80, 100, 120, 150, 180, 200])
     
-    crear_modulos_para_curso(curso1_teacher2.course_id,
-        ["Fundamentos", "Componentes", "Estado", "Hooks Básicos", "Hooks Avanzados", "Context", "Router", "Optimización"],
-        [60, 80, 100, 120, 150, 180, 200, 220])
+    # Módulos para Curso Avanzado
+    crear_modulos_para_curso(curso3.course_id,
+        ["Expresiones Idiomáticas", "Conversaciones Complejas", "Narrativa en Señas", "Interpretación Simultánea", "Matices Culturales", "Ética del Intérprete"],
+        [100, 120, 150, 180, 200, 220])
     
+    # Módulos para Vocabulario: Familia
+    crear_modulos_para_curso(curso4.course_id,
+        ["Miembros de la Familia", "Actividades del Hogar", "Mascotas", "Celebraciones", "Rutinas Diarias"], 
+        [50, 60, 70, 80, 90])
+    
+    # Módulos para Vocabulario Profesional
+    crear_modulos_para_curso(curso5.course_id,
+        ["Entrevistas Laborales", "Reuniones de Trabajo", "Vocabulario Técnico", "Atención al Cliente", "Presentaciones"], 
+        [60, 80, 100, 100, 120])
+    
+    # Módulos para Curso Gratuito
     crear_modulos_para_curso(curso_gratis.course_id,
-        ["HTML Intro", "Etiquetas", "CSS Básico", "Flexbox"], [50, 75, 100, 125])
+        ["Alfabeto Manual Básico", "Saludos Esenciales", "Presentación Personal"], 
+        [50, 75, 100])
     
     for modulo in modulos:
         db.session.add(modulo)
     db.session.commit()
     print_success(f"{len(modulos)} módulos creados")
     
-    # --- PASO 5: Lecciones ---
-    print_info("Creando lecciones...")
+    # --- PASO 5: Lecciones de Señas ---
+    print_info("Creando lecciones con vocabulario de señas...")
     lecciones = []
     
-    def crear_lecciones_para_modulo(module_id, num_lecciones=4, trial_visible=False):
-        for i in range(1, num_lecciones + 1):
-            # Crear un signs_taught ÚNICO combinando module_id y el número de lección
-            signs = f"M{module_id}_L{i}: Conceptos básicos, Ejemplos prácticos"
-        
+    def crear_lecciones_para_modulo(module_id, titulos_lecciones, senas_dict, trial_visible=False):
+        for i, (titulo, senas) in enumerate(zip(titulos_lecciones, senas_dict), 1):
+            # Crear un signs_taught ÚNICO
+            signs = f"M{module_id}_L{i}: {senas}"
+            
             lecciones.append(Lessons(
-                title=f"Lección {i} del Módulo {module_id}",
-                content="Contenido detallado de la lección con ejemplos y ejercicios.",
-                learning_objective="Objetivo de aprendizaje de esta lección.",
-                signs_taught=signs,  # ← AHORA ES ÚNICO
+                title=titulo,
+                content=f"Aprende las siguientes señas: {senas}. Cada seña incluye descripción detallada del movimiento de manos, expresión facial y contexto de uso.",
+                learning_objective=f"Al finalizar esta lección, podrás realizar correctamente las señas de {titulo}.",
+                signs_taught=signs,
                 order=i, 
                 trial_visible=trial_visible and i <= 2,
                 is_active=True, 
                 module_id=module_id
             ))
     
+    # Diccionarios de lecciones por módulo
     modulos_por_curso = {}
     for m in modulos:
         modulos_por_curso.setdefault(m.course_id, []).append(m)
     
-    for course_id, modulos_del_curso in modulos_por_curso.items():
-        es_gratis = any(c.price == 0 for c in cursos if c.course_id == course_id)
-        for modulo in modulos_del_curso:
-            crear_lecciones_para_modulo(modulo.module_id, random.randint(3, 5),
-                                        trial_visible=(es_gratis or modulo.order == 1))
+    # Lecciones para Curso Básico - Módulo 1: Alfabeto Manual
+    modulo_alfabeto = next(m for m in modulos if m.title == "Alfabeto Manual")
+    titulos_alfabeto = ["Vocales A-E-I-O-U", "Consonantes B,C,D,F,G", "Consonantes H,J,K,L,M", "Consonantes N,Ñ,P,Q,R", "Consonantes S,T,V,W,X,Y,Z", "Señas con Dos Manos"]
+    senas_alfabeto = ["A, E, I, O, U", "B, C, D, F, G", "H, J, K, L, M", "N, Ñ, P, Q, R", "S, T, V, W, X, Y, Z", "CH, LL, RR"]
+    crear_lecciones_para_modulo(modulo_alfabeto.module_id, titulos_alfabeto, senas_alfabeto, trial_visible=True)
+    
+    # Lecciones para Curso Básico - Módulo 2: Saludos
+    modulo_saludos = next(m for m in modulos if m.title == "Saludos y Presentaciones")
+    titulos_saludos = ["Saludos Básicos", "Presentarse", "Preguntar cómo está alguien", "Despedidas", "Cortesía: Por favor y Gracias", "Frases de cortesía"]
+    senas_saludos = ["Hola, Buenos días, Buenas tardes", "Me llamo, Mi nombre es, Soy", "¿Cómo estás?, ¿Qué tal?", "Adiós, Hasta luego, Nos vemos", "Por favor, Gracias, De nada", "Permiso, Lo siento, Salud"]
+    crear_lecciones_para_modulo(modulo_saludos.module_id, titulos_saludos, senas_saludos, trial_visible=True)
+    
+    # Lecciones para Curso Básico - Módulo 3: Números y Colores
+    modulo_numeros = next(m for m in modulos if m.title == "Números y Colores")
+    titulos_numeros = ["Números del 0 al 10", "Números del 11 al 20", "Decenas y Centenas", "Colores Primarios", "Colores Secundarios", "Describir objetos con color y número"]
+    senas_numeros = ["0,1,2,3,4,5,6,7,8,9,10", "11,12,13,14,15,16,17,18,19,20", "30,40,50,60,70,80,90,100", "Rojo, Azul, Amarillo", "Verde, Naranja, Morado, Rosa", "Grande/Pequeño, Claro/Oscuro"]
+    crear_lecciones_para_modulo(modulo_numeros.module_id, titulos_numeros, senas_numeros, trial_visible=True)
+    
+    # Lecciones para Curso Intermedio - Verbos
+    modulo_verbos = next(m for m in modulos if m.title == "Verbos Comunes")
+    titulos_verbos = ["Verbos de Movimiento", "Verbos de Comunicación", "Verbos Cotidianos", "Verbos de Emoción", "Verbos de Percepción", "Verbos Modales"]
+    senas_verbos = ["Ir, Venir, Llegar, Salir", "Hablar, Preguntar, Responder, Explicar", "Comer, Beber, Dormir, Trabajar", "Amar, Gustar, Querer, Sentir", "Ver, Oír, Sentir, Saber", "Poder, Deber, Querer, Necesitar"]
+    crear_lecciones_para_modulo(modulo_verbos.module_id, titulos_verbos, senas_verbos, trial_visible=True)
+    
+    # Lecciones para Curso Gratuito
+    modulo_gratis = next(m for m in modulos if m.title == "Alfabeto Manual Básico")
+    titulos_gratis = ["Vocales", "Consonantes básicas", "Tu nombre en señas"]
+    senas_gratis = ["A, E, I, O, U", "M, P, T, L, S", "Practica deletrear tu nombre"]
+    crear_lecciones_para_modulo(modulo_gratis.module_id, titulos_gratis, senas_gratis, trial_visible=True)
+    
+    # Continuar con más lecciones para otros módulos...
+    # (Por brevedad, incluyo solo ejemplos representativos)
     
     for leccion in lecciones:
         db.session.add(leccion)
     db.session.commit()
     print_success(f"{len(lecciones)} lecciones creadas")
     
-    # --- PASO 6: Recursos Multimedia ---
-    print_info("Creando recursos multimedia...")
+    # --- PASO 6: Recursos Multimedia (Videos de Señass) ---
+    print_info("Creando recursos multimedia de señas...")
     recursos = []
-    urls = {
-        'video': ["vid1.mp4", "vid2.mp4"], 
-        'image': ["img1.jpg", "img2.jpg", "img3.jpg"],
-        'gif': ["gif1.gif", "gif2.gif"], 
-        'document': ["doc1.pdf", "doc2.docx"]
-    }
     
-    for leccion in random.sample(lecciones, min(15, len(lecciones))):
-        tipos_usados = []
-        for i in range(random.randint(1, 3)):
-            tipos_disponibles = [t for t in ['video', 'image', 'gif', 'document'] if t not in tipos_usados]
-            if not tipos_disponibles:
-                tipos_disponibles = ['image']
-            tipo = random.choice(tipos_disponibles)
-            tipos_usados.append(tipo)
+    # URLs de ejemplo (en producción, serían URLs reales de Cloudinary)
+    urls_videos = [
+        "https://res.cloudinary.com/ejemplo/videos/senas/alfabeto.mp4",
+        "https://res.cloudinary.com/ejemplo/videos/senas/saludos.mp4",
+        "https://res.cloudinary.com/ejemplo/videos/senas/numeros.mp4",
+        "https://res.cloudinary.com/ejemplo/videos/senas/colores.mp4",
+        "https://res.cloudinary.com/ejemplo/videos/senas/familia.mp4",
+        "https://res.cloudinary.com/ejemplo/videos/senas/verbos.mp4"
+    ]
+    
+    urls_imagenes = [
+        "https://res.cloudinary.com/ejemplo/imagenes/senas/diagrama-alfabeto.jpg",
+        "https://res.cloudinary.com/ejemplo/imagenes/senas/posicion-manos.jpg",
+        "https://res.cloudinary.com/ejemplo/imagenes/senas/expresiones-faciales.jpg"
+    ]
+    
+    urls_gifs = [
+        "https://res.cloudinary.com/ejemplo/gifs/senas/movimiento-letra-a.gif",
+        "https://res.cloudinary.com/ejemplo/gifs/senas/movimiento-hola.gif",
+        "https://res.cloudinary.com/ejemplo/gifs/senas/movimiento-gracias.gif"
+    ]
+    
+    for leccion in random.sample(lecciones, min(20, len(lecciones))):
+        # Cada lección tiene al menos un video demostrativo
+        recursos.append(MultimediaResources(
+            lesson_id=leccion.lesson_id,
+            resource_type='video',
+            url=random.choice(urls_videos),
+            duration_seconds=random.choice([60, 90, 120, 180]),
+            description=f"Video demostrativo: {leccion.title}",
+            order=1
+        ))
+        
+        # Algunas lecciones tienen imágenes explicativas
+        if random.random() > 0.5:
             recursos.append(MultimediaResources(
-                lesson_id=leccion.lesson_id, 
-                resource_type=tipo,
-                url=f"https://ejemplo.com/{random.choice(urls[tipo])}",
-                duration_seconds=random.choice([60, 120, 300]) if tipo == 'video' else None,
-                description=f"Recurso {tipo}", 
-                order=i+1
+                lesson_id=leccion.lesson_id,
+                resource_type='image',
+                url=random.choice(urls_imagenes),
+                duration_seconds=None,
+                description=f"Diagrama: {leccion.title}",
+                order=2
+            ))
+        
+        # Lecciones de alfabeto tienen GIFs animados
+        if "Alfabeto" in leccion.title or "Vocales" in leccion.title:
+            recursos.append(MultimediaResources(
+                lesson_id=leccion.lesson_id,
+                resource_type='gif',
+                url=random.choice(urls_gifs),
+                duration_seconds=None,
+                description=f"Animación: movimiento de manos",
+                order=3
             ))
     
     for recurso in recursos:
         db.session.add(recurso)
     db.session.commit()
-    print_success(f"{len(recursos)} recursos creados")
+    print_success(f"{len(recursos)} recursos multimedia creados")
     
     # --- PASO 7: Compras ---
-    print_info("Creando compras...")
+    print_info("Creando compras de cursos...")
     compras = []
     
-    curso_python = next(c for c in cursos if c.title == "Python desde Cero")
+    # Ana compra Curso Básico
     compras.append(Purchases(
         purchase_date=datetime.now(timezone.utc)-timedelta(days=25),
-        price=curso_python.price, 
-        total=curso_python.price, 
+        price=curso1.price, 
+        total=curso1.price, 
         status='paid',
         start_date=datetime.now(timezone.utc)-timedelta(days=25),
-        course_id=curso_python.course_id, 
+        course_id=curso1.course_id, 
         user_id=student_ids[0]
     ))
     
+    # Ana también compra el curso gratuito
     compras.append(Purchases(
         purchase_date=datetime.now(timezone.utc)-timedelta(days=10),
         price=0, 
@@ -447,24 +528,25 @@ def run_seed():
         user_id=student_ids[0]
     ))
     
-    curso_react = next(c for c in cursos if c.title == "React Moderno")
+    # Miguel compra Curso de Vocabulario: Familia
     compras.append(Purchases(
         purchase_date=datetime.now(timezone.utc)-timedelta(days=5),
-        price=curso_react.price, 
-        total=curso_react.price, 
+        price=curso4.price, 
+        total=curso4.price, 
         status='paid',
         start_date=datetime.now(timezone.utc)-timedelta(days=5),
-        course_id=curso_react.course_id, 
+        course_id=curso4.course_id, 
         user_id=student_ids[1]
     ))
     
+    # Compra pendiente (para pruebas)
     compras.append(Purchases(
         purchase_date=datetime.now(timezone.utc)-timedelta(hours=2),
-        price=79.99, 
-        total=79.99, 
+        price=curso2.price, 
+        total=curso2.price, 
         status='pending', 
         start_date=None,
-        course_id=curso_react.course_id, 
+        course_id=curso2.course_id, 
         user_id=student_ids[0],
         stripe_payment_intent_id="pi_test_pending_123456"
     ))
@@ -475,40 +557,43 @@ def run_seed():
     print_success(f"{len(compras)} compras creadas")
     
     # --- PASO 8: Puntos de Usuario ---
-    print_info("Creando historial de puntos...")
+    print_info("Creando historial de puntos por aprendizaje...")
     puntos = []
     
-    for leccion in random.sample(lecciones, 8):
+    # Ana ha completado lecciones de señas
+    for leccion in random.sample(lecciones, 10):
         puntos.append(UserPoints(
             user_id=student_ids[0], 
-            points=random.choice([10,20,30]),
+            points=random.choice([10,15,20]),
             point_type='lesson', 
-            event_description=f"Lección: {leccion.title[:30]}",
+            event_description=f"Aprendió: {leccion.title[:50]}",
             date=datetime.now(timezone.utc)-timedelta(days=random.randint(1,20))
         ))
     
-    for leccion in random.sample(lecciones, 5):
+    # Miguel ha completado menos lecciones
+    for leccion in random.sample(lecciones, 6):
         puntos.append(UserPoints(
             user_id=student_ids[1], 
-            points=random.choice([10,20]),
+            points=random.choice([10,15]),
             point_type='lesson', 
-            event_description=f"Lección: {leccion.title[:30]}",
+            event_description=f"Aprendió: {leccion.title[:50]}",
             date=datetime.now(timezone.utc)-timedelta(days=random.randint(1,10))
         ))
     
+    # Profesores ganan puntos por crear cursos
     puntos.append(UserPoints(
         user_id=teacher_ids[0], 
         points=500, 
         point_type='course',
-        event_description="Creación: Python desde Cero",
+        event_description="Creación: Curso Básico de Señas",
         date=datetime.now(timezone.utc)-timedelta(days=50)
     ))
     
     puntos.append(UserPoints(
         user_id=teacher_ids[1], 
-        points=800, 
+        points=400, 
         point_type='course',
-        event_description="Creación: React Moderno",
+        event_description="Creación: Vocabulario Familia",
         date=datetime.now(timezone.utc)-timedelta(days=40)
     ))
     
@@ -516,6 +601,7 @@ def run_seed():
         db.session.add(punto)
     db.session.commit()
     
+    # Actualizar puntos totales
     for uid in student_ids + teacher_ids:
         total = db.session.query(db.func.sum(UserPoints.points)).filter(UserPoints.user_id == uid).scalar() or 0
         Users.query.get(uid).current_points = total
@@ -523,29 +609,31 @@ def run_seed():
     print_success(f"{len(puntos)} puntos creados")
     
     # --- PASO 9: Progreso de Usuarios ---
-    print_info("Creando progreso...")
+    print_info("Creando progreso de aprendizaje...")
     progresos = []
     
-    lecciones_python = [l for l in lecciones if l.module_id in [m.module_id for m in modulos_por_curso[curso_python.course_id]]]
-    for i, l in enumerate(lecciones_python[:10]):
-        prog = i < 8
+    # Ana ha progresado en Curso Básico
+    lecciones_curso1 = [l for l in lecciones if l.module_id in [m.module_id for m in modulos_por_curso[curso1.course_id]]]
+    for i, leccion in enumerate(lecciones_curso1[:12]):
+        completada = i < 10  # 10 completadas, 2 en progreso
         progresos.append(UserProgress(
             user_id=student_ids[0], 
-            lesson_id=l.lesson_id, 
-            completed=prog,
-            start_date=datetime.now(timezone.utc)-timedelta(days=20+i),
-            completion_date=datetime.now(timezone.utc)-timedelta(days=15+i) if prog else None
+            lesson_id=leccion.lesson_id, 
+            completed=completada,
+            start_date=datetime.now(timezone.utc)-timedelta(days=24-i),
+            completion_date=datetime.now(timezone.utc)-timedelta(days=20-i) if completada else None
         ))
     
-    lecciones_react = [l for l in lecciones if l.module_id in [m.module_id for m in modulos_por_curso[curso_react.course_id]]]
-    for i, l in enumerate(lecciones_react[:6]):
-        prog = i < 4
+    # Miguel ha progresado en Vocabulario Familia
+    lecciones_curso4 = [l for l in lecciones if l.module_id in [m.module_id for m in modulos_por_curso[curso4.course_id]]]
+    for i, leccion in enumerate(lecciones_curso4[:8]):
+        completada = i < 6  # 6 completadas, 2 en progreso
         progresos.append(UserProgress(
             user_id=student_ids[1], 
-            lesson_id=l.lesson_id, 
-            completed=prog,
-            start_date=datetime.now(timezone.utc)-timedelta(days=10+i),
-            completion_date=datetime.now(timezone.utc)-timedelta(days=8+i) if prog else None
+            lesson_id=leccion.lesson_id, 
+            completed=completada,
+            start_date=datetime.now(timezone.utc)-timedelta(days=10-i),
+            completion_date=datetime.now(timezone.utc)-timedelta(days=8-i) if completada else None
         ))
     
     for prog in progresos:
@@ -553,18 +641,20 @@ def run_seed():
     db.session.commit()
     print_success(f"{len(progresos)} progresos creados")
     
-    # --- PASO 10: Logros ---
-    print_info("Creando logros...")
+    # --- PASO 10: Logros adaptados a lengua de señas ---
+    print_info("Creando logros para estudiantes de señas...")
     logros = []
     datos_logros = [
-        ("Primeros Pasos", "Completa tu primera lección", 10, "🏁"),
-        ("Estudiante Constante", "Completa 10 lecciones", 100, "📚"),
-        ("Maestro del Python", "Completa el curso de Python", 500, "🐍"),
-        ("Experto en React", "Completa el curso de React", 800, "⚛️"),
-        ("Coleccionista", "Acumula 1000 puntos", 1000, "⭐"),
-        ("Profesor Destacado", "Crea un curso exitoso", 1000, "👨‍🏫"),
-        ("Madrugador", "Regístrate temprano", 50, "🌅"),
-        ("Explorador", "Prueba todos los recursos", 200, "🧭")
+        ("Primeras Señas", "Completa tu primera lección de lengua de señas", 10, "🖐️"),
+        ("Deletreo Experto", "Domina el alfabeto manual completo", 100, "🔤"),
+        ("Saludador Profesional", "Aprende todos los saludos básicos", 50, "👋"),
+        ("Vocabulario Familiar", "Completa el módulo de familia", 150, "👪"),
+        ("Intérprete en Progreso", "Completa 20 lecciones", 200, "📹"),
+        ("Conversador Fluido", "Completa el nivel intermedio", 400, "💬"),
+        ("Profesor de Señas", "Crea un curso con más de 10 estudiantes", 500, "👨‍🏫"),
+        ("Explorador Cultural", "Aprende sobre la cultura sorda", 100, "🌍"),
+        ("Comunicador Inclusivo", "Completa 50 lecciones", 500, "🤝"),
+        ("Maestro Intérprete", "Domina todos los niveles", 1000, "🏆")
     ]
     
     for nombre, desc, pts, icono in datos_logros:
@@ -580,42 +670,48 @@ def run_seed():
     db.session.commit()
     print_success(f"{len(logros)} logros creados")
     
-    # --- PASO 11: Asignar Logros ---
-    print_info("Asignando logros...")
+    # --- PASO 11: Asignar Logros a Usuarios ---
+    print_info("Asignando logros a usuarios...")
     asignaciones = []
     
-    logro1 = next(l for l in logros if l.name == "Primeros Pasos")
-    logro2 = next(l for l in logros if l.name == "Estudiante Constante")
-    logro3 = next(l for l in logros if l.name == "Madrugador")
-    logro4 = next(l for l in logros if l.name == "Profesor Destacado")
+    # Buscar logros por nombre
+    logro_primeras = next(l for l in logros if l.name == "Primeras Señas")
+    logro_deletreo = next(l for l in logros if l.name == "Deletreo Experto")
+    logro_saludos = next(l for l in logros if l.name == "Saludador Profesional")
+    logro_profesor = next(l for l in logros if l.name == "Profesor de Señas")
     
+    # Ana tiene varios logros
     asignaciones.extend([
         UserAchievements(
             user_id=student_ids[0], 
-            achievement_id=logro1.achievement_id,
-            obtained_date=datetime.now(timezone.utc)-timedelta(days=25)
+            achievement_id=logro_primeras.achievement_id,
+            obtained_date=datetime.now(timezone.utc)-timedelta(days=24)
         ),
         UserAchievements(
             user_id=student_ids[0], 
-            achievement_id=logro2.achievement_id,
-            obtained_date=datetime.now(timezone.utc)-timedelta(days=10)
+            achievement_id=logro_deletreo.achievement_id,
+            obtained_date=datetime.now(timezone.utc)-timedelta(days=15)
         ),
         UserAchievements(
             user_id=student_ids[0], 
-            achievement_id=logro3.achievement_id,
-            obtained_date=datetime.now(timezone.utc)-timedelta(days=30)
-        ),
-        UserAchievements(
-            user_id=student_ids[1], 
-            achievement_id=logro1.achievement_id,
-            obtained_date=datetime.now(timezone.utc)-timedelta(days=12)
-        ),
-        UserAchievements(
-            user_id=teacher_ids[0], 
-            achievement_id=logro4.achievement_id,
-            obtained_date=datetime.now(timezone.utc)-timedelta(days=30)
+            achievement_id=logro_saludos.achievement_id,
+            obtained_date=datetime.now(timezone.utc)-timedelta(days=20)
         )
     ])
+    
+    # Miguel tiene el logro de primeras señas
+    asignaciones.append(UserAchievements(
+        user_id=student_ids[1], 
+        achievement_id=logro_primeras.achievement_id,
+        obtained_date=datetime.now(timezone.utc)-timedelta(days=8)
+    ))
+    
+    # Profesora María tiene logro de profesor
+    asignaciones.append(UserAchievements(
+        user_id=teacher_ids[0], 
+        achievement_id=logro_profesor.achievement_id,
+        obtained_date=datetime.now(timezone.utc)-timedelta(days=30)
+    ))
     
     for asig in asignaciones:
         db.session.add(asig)
@@ -624,8 +720,14 @@ def run_seed():
     
     # --- FINAL ---
     print(f"\n{Colors.GREEN}{'='*60}{Colors.END}")
-    print(f"{Colors.GREEN}✅ SEMILLA COMPLETADA EXITOSAMENTE{Colors.END}")
+    print(f"{Colors.GREEN}✅ SEMILLA DE LENGUA DE SEÑAS COMPLETADA{Colors.END}")
     print(f"{Colors.GREEN}{'='*60}{Colors.END}\n")
+    print(f"{Colors.BLUE}📊 Resumen:{Colors.END}")
+    print(f"   - {len(cursos)} cursos")
+    print(f"   - {len(modulos)} módulos")
+    print(f"   - {len(lecciones)} lecciones")
+    print(f"   - {len(recursos)} recursos multimedia")
+    print(f"   - {len(logros)} logros disponibles")
 
 # ============================================
 # EJECUTAR LA SEMILLA

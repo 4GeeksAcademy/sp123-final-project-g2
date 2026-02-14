@@ -27,16 +27,26 @@ CORS(api)
 
 # Verifica usuario activo con JWT válido
 def validate_active_user():
-    user = get_jwt()
+    # Obtener claims del token (no el identity)
+    claims = get_jwt()
     
-    if not user:
+    if not claims:
         response_body = {
             'message': 'Token inválido o no proporcionado',
             'results': {}
         }
         return None, response_body, 401
     
-    if not user.get('is_active', False):
+    # Construir user_data desde los claims
+    user_data = {
+        'user_id': claims.get('user_id'),
+        'is_active': claims.get('is_active', False),
+        'role': claims.get('role'),
+        'is_admin': claims.get('is_admin', False),
+        'trial_end_date': claims.get('trial_end_date')
+    }
+    
+    if not user_data.get('is_active', False):
         response_body = {
             'message': 'Usuario no autorizado',
             'results': {}
@@ -45,8 +55,8 @@ def validate_active_user():
     
     trial_date_parseable = False
     
-    if user.get('role') == 'demo':
-        trial_end_date = user.get('trial_end_date')
+    if user_data.get('role') == 'demo':
+        trial_end_date = user_data.get('trial_end_date')
         
         if trial_end_date and isinstance(trial_end_date, str) and trial_end_date.strip():
             if 'T' in trial_end_date and '-' in trial_end_date:
@@ -56,6 +66,12 @@ def validate_active_user():
                     trial_date_parseable = True
                     
                     now = datetime.now(timezone.utc)
+                    
+                    #  Asegurar que ambas fechas tengan timezone
+                    # Si trial_end no tiene timezone, asumir UTC
+                    if trial_end.tzinfo is None:
+                        trial_end = trial_end.replace(tzinfo=timezone.utc)
+                    
                     if trial_end < now:
                         response_body = {
                             'message': 'Periodo de trial expirado. Por favor, actualice su plan.',
@@ -64,18 +80,18 @@ def validate_active_user():
                         return None, response_body, 403
                         
                 except ValueError:
-                    print(f"⚠️ ADVERTENCIA: Formato trial_end_date inválido para usuario {user.get('user_id')}: {trial_end_date}")
-                    
-    user['_trial_date_parseable'] = trial_date_parseable
+                    print(f"⚠️ ADVERTENCIA: Formato trial_end_date inválido para usuario {user_data.get('user_id')}: {trial_end_date}")
     
-    return user, None, 200
+    user_data['_trial_date_parseable'] = trial_date_parseable
+    
+    return user_data, None, 200
 
 # Valida roles de usuario y permisos
 def validate_user_role(
     require_role=None,
     allowed_roles=None,
     require_admin=False,
-    allow_demo=False
+    allow_demo=False  # Este parámetro ahora será True para compras
 ):
     user, response_body, status_code = validate_active_user()
     if response_body:
@@ -95,6 +111,7 @@ def validate_user_role(
     
     if is_admin:
         return user, None, 200
+    
     
     if user_role == 'demo' and not allow_demo:
         response_body = {
@@ -456,7 +473,7 @@ def login():
             'results': {}
         }, 400
     
-    row = db.session.execute(db.select(Users).where(Users.email == email,Users.is_active == True)).scalar()
+    row = db.session.execute(db.select(Users).where(Users.email == email, Users.is_active == True)).scalar()
     
     if not row or not check_password_hash(row.password_hash, password):
         return {
@@ -464,27 +481,28 @@ def login():
             'results': {}
         }, 401
     
-    user_data = {
-        'user_id': row.user_id,
-        'is_active': row.is_active,
-        'role': row.role,
-        'is_admin': row.is_admin,
-        'trial_end_date': row.trial_end_date.isoformat() if row.trial_end_date else None 
-    }
+    
+    access_token = create_access_token(
+        identity=str(row.user_id), 
+        additional_claims={
+            'user_id': row.user_id,
+            'is_active': row.is_active,
+            'role': row.role,
+            'is_admin': row.is_admin,
+            'trial_end_date': row.trial_end_date.isoformat() if row.trial_end_date else None
+        }
+    )
     
     return {
         'message': 'Usuario autenticado correctamente',
         'results': {
-            'user_id': user_data['user_id'],
-            'role': user_data['role'],
-            'is_active': user_data['is_active'],
-            'is_admin': user_data['is_admin'],
-            'trial_end_date': user_data['trial_end_date']
+            'user_id': row.user_id,
+            'role': row.role,
+            'is_active': row.is_active,
+            'is_admin': row.is_admin,
+            'trial_end_date': row.trial_end_date.isoformat() if row.trial_end_date else None
         },
-        'access_token': create_access_token(
-            identity=user_data['user_id'], 
-            additional_claims=user_data
-        )
+        'access_token': access_token
     }, 200
 
 # GET: Ruta protegida para verificar token
@@ -1674,89 +1692,138 @@ def purchases_public():
 @api.route('/purchases-private', methods=['GET', 'POST'])
 @jwt_required()
 def purchases_private():
-    user, error_response, status = validate_user_role()
-    if error_response:
-        return error_response, status
-    
-    user_id = user.get('user_id')
-    is_admin = user.get('is_admin', False)
-    user_role = user.get('role')
-    user_email = user.get('email', '')
-    
-    if request.method == 'GET':
-        page, per_page, offset = build_pagination_params(request)
-        
-        data_query = db.select(Purchases)
-        count_query = db.select(db.func.count()).select_from(Purchases)
-        
-        if not is_admin:
-            if user_role == 'teacher':
-                data_query = data_query.join(Courses, Purchases.course_id == Courses.course_id) \
-                                       .where(Courses.created_by == user_id)
-                
-                count_query = count_query.join(Courses, Purchases.course_id == Courses.course_id) \
-                                         .where(Courses.created_by == user_id)
-            else:
-                data_query = data_query.where(Purchases.user_id == user_id)
-                count_query = count_query.where(Purchases.user_id == user_id)
-        
-        total_count = db.session.execute(count_query).scalar() or 0
-        
-        rows = db.session.execute(
-            data_query.order_by(Purchases.purchase_date.desc())
-            .limit(per_page)
-            .offset(offset)
-        ).scalars()
-        
-        results = [row.serialize() for row in rows]
-        
-        return build_pagination_response(
-            results=results,
-            total_count=total_count,
-            page=page,
-            per_page=per_page,
-            message='Listado de compras' if results else 'No hay compras registradas'
-        )
-    
-    if request.method == 'POST':
-        # HELPER: validate_request_json - Validar datos de compra
-        data, error_response, status = validate_request_json(['course_id'])
+    try:
+        # Permitir usuarios demo
+        user, error_response, status = validate_user_role(allow_demo=True)
         if error_response:
             return error_response, status
         
-        course_id = data.get('course_id')
+        user_id = user.get('user_id')
+        is_admin = user.get('is_admin', False)
+        user_role = user.get('role')
+        user_email = user.get('email', '')
         
-        if not isinstance(course_id, int) or course_id < 1:
-            return simple_error_response('ID de curso inválido. Debe ser un número positivo.', 400)
-        
-        course = db.session.execute(
-            db.select(Courses).where(
-                Courses.course_id == course_id,
-                Courses.is_active == True
+        if request.method == 'GET':
+            page, per_page, offset = build_pagination_params(request)
+            
+            data_query = db.select(Purchases)
+            count_query = db.select(db.func.count()).select_from(Purchases)
+            
+            if not is_admin:
+                if user_role == 'teacher':
+                    data_query = data_query.join(Courses, Purchases.course_id == Courses.course_id) \
+                                           .where(Courses.created_by == user_id)
+                    
+                    count_query = count_query.join(Courses, Purchases.course_id == Courses.course_id) \
+                                             .where(Courses.created_by == user_id)
+                else:
+                    data_query = data_query.where(Purchases.user_id == user_id)
+                    count_query = count_query.where(Purchases.user_id == user_id)
+            
+            total_count = db.session.execute(count_query).scalar() or 0
+            
+            rows = db.session.execute(
+                data_query.order_by(Purchases.purchase_date.desc())
+                .limit(per_page)
+                .offset(offset)
+            ).scalars()
+            
+            results = [row.serialize() for row in rows]
+            
+            return build_pagination_response(
+                results=results,
+                total_count=total_count,
+                page=page,
+                per_page=per_page,
+                message='Listado de compras' if results else 'No hay compras registradas'
             )
-        ).scalar()
         
-        if not course:
-            return simple_error_response('Curso no encontrado o inactivo', 400)
-        
-        existing_purchase = db.session.execute(
-            db.select(Purchases).where(
-                Purchases.user_id == user_id,
-                Purchases.course_id == course_id,
-                Purchases.status == 'paid'
-            )
-        ).scalar()
-        
-        if existing_purchase:
-            return simple_error_response('Ya tienes este curso comprado', 409)
-        
-        if course.price == 0:
+        if request.method == 'POST':
+            # Validar que el request sea JSON
+            if not request.is_json:
+                return simple_error_response('Content-Type debe ser application/json', 415)
+            
+            data = request.get_json()
+            if not data:
+                return simple_error_response('Datos JSON inválidos', 400)
+            
+            course_id = data.get('course_id')
+            if not course_id or not isinstance(course_id, int) or course_id < 1:
+                return simple_error_response('ID de curso inválido. Debe ser un número positivo.', 400)
+            
+            # Verificar que el curso existe y está activo
+            course = db.session.execute(
+                db.select(Courses).where(
+                    Courses.course_id == course_id,
+                    Courses.is_active == True
+                )
+            ).scalar()
+            
+            if not course:
+                return simple_error_response('Curso no encontrado o inactivo', 404)
+            
+            # 🔥 VERIFICAR SI YA COMPRÓ EL CURSO (CAMBIO PRINCIPAL)
+            existing_purchase = db.session.execute(
+                db.select(Purchases).where(
+                    Purchases.user_id == user_id,
+                    Purchases.course_id == course_id
+                )
+            ).scalar()
+            
+            if existing_purchase:
+                # Mensaje amigable según el estado de la compra
+                if existing_purchase.status == 'paid':
+                    return simple_error_response('¡Ya tienes este curso comprado! Puedes acceder a él desde tu dashboard.', 409)
+                elif existing_purchase.status == 'pending':
+                    return simple_error_response('Ya iniciaste la compra de este curso. Completa el pago para activarlo.', 409)
+                else:
+                    return simple_error_response('Ya tienes un registro de este curso. Contacta a soporte si tienes problemas.', 409)
+            
+            # Curso gratuito
+            if course.price == 0 or course.price is None:
+                purchase = Purchases(
+                    purchase_date=datetime.now(timezone.utc),
+                    price=0,
+                    total=0,
+                    status='paid',
+                    start_date=datetime.now(timezone.utc),
+                    course_id=course_id,
+                    user_id=user_id
+                )
+                
+                db.session.add(purchase)
+                db.session.flush()
+                
+                # Asignar puntos si el curso tiene
+                if course.points and course.points > 0:
+                    user_point = UserPoints(
+                        user_id=user_id,
+                        points=course.points,
+                        point_type='course',
+                        event_description=f"Curso gratuito: {course.title}",
+                        date=datetime.now(timezone.utc)
+                    )
+                    db.session.add(user_point)
+                    
+                    user_obj = db.session.get(Users, user_id)
+                    if user_obj:
+                        current = user_obj.current_points or 0
+                        user_obj.current_points = current + course.points
+                
+                db.session.commit()
+                
+                return simple_success_response(
+                    purchase.serialize(),
+                    '¡Curso gratuito activado exitosamente!'
+                ), 201
+            
+            # Curso de pago
             purchase = Purchases(
                 purchase_date=datetime.now(timezone.utc),
-                price=0,
-                total=0,
-                status='paid',
-                start_date=datetime.now(timezone.utc),
+                price=course.price,
+                total=course.price,
+                status='pending',
+                start_date=None,
                 course_id=course_id,
                 user_id=user_id
             )
@@ -1764,73 +1831,39 @@ def purchases_private():
             db.session.add(purchase)
             db.session.flush()
             
-            if course.points > 0:
-                user_point = UserPoints(
-                    user_id=user_id,
-                    points=course.points,
-                    point_type='course',
-                    event_description=f"Curso gratuito: {course.title}",
-                    date=datetime.now(timezone.utc)
-                )
-                db.session.add(user_point)
-                
-                user_obj = db.session.get(Users, user_id)
-                if user_obj:
-                    current = user_obj.current_points or 0
-                    user_obj.current_points = current + course.points
+            # Preparar pago con Stripe
+            metadata = stripe_service.create_metadata_for_purchase(
+                purchase_id=purchase.purchase_id,
+                user_id=user_id,
+                course_id=course.course_id,
+                course_title=course.title
+            )
             
+            amount_cents = stripe_service.format_amount_for_stripe(course.price)
+            
+            if amount_cents < 50:
+                db.session.rollback()
+                return simple_error_response("Monto muy bajo para pago con tarjeta. Mínimo: $0.50 USD", 400)
+            
+            payment_result = stripe_service.create_payment_intent(
+                amount_cents=amount_cents,
+                currency='usd',
+                metadata=metadata,
+                description=f"Compra del curso: {course.title}",
+                customer_email=user_email
+            )
+            
+            if not payment_result or not payment_result.get('success'):
+                db.session.rollback()
+                error_msg = payment_result.get('error', 'Error de Stripe') if payment_result else 'Error de Stripe'
+                return simple_error_response(error_msg, 500)
+            
+            purchase.stripe_payment_intent_id = payment_result['id']
             db.session.commit()
             
-            return simple_success_response(
-                purchase.serialize(),
-                '¡Curso gratuito activado exitosamente!'
-            ), 201
-        
-        purchase = Purchases(
-            purchase_date=datetime.now(timezone.utc),
-            price=course.price,
-            total=course.price,
-            status='pending',
-            start_date=None,
-            course_id=course_id,
-            user_id=user_id
-        )
-        
-        db.session.add(purchase)
-        db.session.flush()
-        
-        metadata = stripe_service.create_metadata_for_purchase(
-            purchase_id=purchase.purchase_id,
-            user_id=user_id,
-            course_id=course.course_id,
-            course_title=course.title
-        )
-        
-        amount_cents = stripe_service.format_amount_for_stripe(course.price)
-        
-        if amount_cents < 50:
-            db.session.rollback()
-            return simple_error_response("Monto muy bajo para pago con tarjeta. Mínimo: $0.50 USD", 400)
-        
-        payment_result = stripe_service.create_payment_intent(
-            amount_cents=amount_cents,
-            currency='usd',
-            metadata=metadata,
-            description=f"Compra del curso: {course.title}",
-            customer_email=user_email
-        )
-        
-        if not payment_result['success']:
-            db.session.rollback()
-            return simple_error_response(payment_result.get('error', 'Error de Stripe'), 500)
-        
-        purchase.stripe_payment_intent_id = payment_result['id']
-        db.session.commit()
-        
-        stripe_config = stripe_service.get_stripe_config()
-        
-        return simple_success_response(
-            {
+            stripe_config = stripe_service.get_stripe_config()
+            
+            response_data = {
                 'purchase': purchase.serialize(),
                 'stripe_payment': {
                     'client_secret': payment_result['client_secret'],
@@ -1847,9 +1880,16 @@ def purchases_private():
                     'price': float(course.price),
                     'points': course.points
                 }
-            },
-            'Pago preparado exitosamente'
-        ), 201
+            }
+            
+            return simple_success_response(response_data, 'Pago preparado exitosamente'), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error en purchases_private: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return simple_error_response(f"Error interno del servidor: {str(e)}", 500)
     
     return method_not_allowed_response()
 
