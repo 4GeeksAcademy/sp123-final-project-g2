@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 5d24f97b4db0
+Revision ID: 890b89921ca8
 Revises: 
-Create Date: 2026-01-30 20:05:36.299254
+Create Date: 2026-02-13 18:46:40.645617
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '5d24f97b4db0'
+revision = '890b89921ca8'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -39,6 +39,9 @@ def upgrade():
     sa.Column('registration_date', sa.DateTime(), nullable=True),
     sa.Column('trial_end_date', sa.DateTime(), nullable=True),
     sa.Column('last_access', sa.DateTime(), nullable=True),
+    sa.Column('deleted_at', sa.DateTime(), nullable=True),
+    sa.Column('original_email', sa.String(length=100), nullable=True),
+    sa.Column('deletion_uuid', sa.String(length=36), nullable=True),
     sa.PrimaryKeyConstraint('user_id'),
     sa.UniqueConstraint('email')
     )
@@ -46,14 +49,13 @@ def upgrade():
     sa.Column('course_id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=150), nullable=False),
     sa.Column('description', sa.String(length=600), nullable=True),
-    sa.Column('price', sa.Float(), nullable=False),
+    sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('creation_date', sa.DateTime(), nullable=False),
-    sa.Column('points', sa.Integer(), nullable=True),
+    sa.Column('points', sa.Integer(), nullable=False),
     sa.Column('created_by', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['created_by'], ['users.user_id'], ),
     sa.PrimaryKeyConstraint('course_id'),
-    sa.UniqueConstraint('description'),
     sa.UniqueConstraint('title')
     )
     op.create_table('user_achievements',
@@ -61,9 +63,10 @@ def upgrade():
     sa.Column('obtained_date', sa.DateTime(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('achievement_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['achievement_id'], ['achievements.achievement_id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
-    sa.PrimaryKeyConstraint('user_achievement_id')
+    sa.ForeignKeyConstraint(['achievement_id'], ['achievements.achievement_id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('user_achievement_id'),
+    sa.UniqueConstraint('user_id', 'achievement_id', name='uq_user_achievement')
     )
     op.create_table('user_points',
     sa.Column('point_id', sa.Integer(), nullable=False),
@@ -72,42 +75,47 @@ def upgrade():
     sa.Column('event_description', sa.String(length=255), nullable=True),
     sa.Column('date', sa.DateTime(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('point_id')
     )
     op.create_table('modules',
     sa.Column('module_id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=150), nullable=False),
-    sa.Column('order', sa.Integer(), nullable=True),
-    sa.Column('points', sa.Integer(), nullable=True),
+    sa.Column('order', sa.Integer(), nullable=False),
+    sa.Column('points', sa.Integer(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('course_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['course_id'], ['courses.course_id'], ),
-    sa.PrimaryKeyConstraint('module_id')
+    sa.ForeignKeyConstraint(['course_id'], ['courses.course_id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('module_id'),
+    sa.UniqueConstraint('course_id', 'order', name='uq_module_order_per_course')
     )
     op.create_table('purchases',
     sa.Column('purchase_id', sa.Integer(), nullable=False),
     sa.Column('purchase_date', sa.DateTime(), nullable=False),
-    sa.Column('price', sa.Float(), nullable=True),
-    sa.Column('total', sa.Float(), nullable=True),
+    sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('total', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('status', sa.Enum('paid', 'pending', 'cancelled', name='status'), nullable=True),
     sa.Column('start_date', sa.DateTime(), nullable=False),
     sa.Column('course_id', sa.Integer(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['course_id'], ['courses.course_id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
-    sa.PrimaryKeyConstraint('purchase_id')
+    sa.ForeignKeyConstraint(['course_id'], ['courses.course_id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('purchase_id'),
+    sa.UniqueConstraint('user_id', 'course_id', name='uq_user_course_purchase')
     )
     op.create_table('lessons',
     sa.Column('lesson_id', sa.Integer(), nullable=False),
-    sa.Column('title', sa.String(length=150), nullable=True),
-    sa.Column('content', sa.String(length=600), nullable=True),
-    sa.Column('learning_objective', sa.String(length=600), nullable=True),
+    sa.Column('title', sa.String(length=150), nullable=False),
+    sa.Column('content', sa.Text(), nullable=False),
+    sa.Column('learning_objective', sa.Text(), nullable=True),
     sa.Column('signs_taught', sa.String(length=600), nullable=True),
-    sa.Column('order', sa.Integer(), nullable=True),
+    sa.Column('order', sa.Integer(), nullable=False),
     sa.Column('trial_visible', sa.Boolean(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('module_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['module_id'], ['modules.module_id'], ),
+    sa.ForeignKeyConstraint(['module_id'], ['modules.module_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('lesson_id'),
+    sa.UniqueConstraint('module_id', 'order', name='uq_lesson_order_per_module'),
     sa.UniqueConstraint('signs_taught')
     )
     op.create_table('multimedia_resources',
@@ -118,7 +126,7 @@ def upgrade():
     sa.Column('description', sa.String(length=255), nullable=True),
     sa.Column('order', sa.Integer(), nullable=False),
     sa.Column('lesson_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['lesson_id'], ['lessons.lesson_id'], ),
+    sa.ForeignKeyConstraint(['lesson_id'], ['lessons.lesson_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('resource_id')
     )
     op.create_table('user_progress',
@@ -128,9 +136,10 @@ def upgrade():
     sa.Column('completion_date', sa.DateTime(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('lesson_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['lesson_id'], ['lessons.lesson_id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
-    sa.PrimaryKeyConstraint('progress_id')
+    sa.ForeignKeyConstraint(['lesson_id'], ['lessons.lesson_id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('progress_id'),
+    sa.UniqueConstraint('user_id', 'lesson_id', name='uq_user_lesson_progress')
     )
     # ### end Alembic commands ###
 
