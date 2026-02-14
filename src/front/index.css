@@ -401,3 +401,24 @@
 .qs-footer-link:hover{
   text-decoration: underline;
 }
+
+.voc-feature-card {
+  border: 3px solid #2f45ff;
+  border-radius: 20px;
+  transition: all 0.25s ease;
+}
+
+.voc-feature-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 25px rgba(47, 69, 255, 0.25);
+}
+
+.voc-feature-icon {
+  font-size: 2.5rem;
+  color: #2f45ff;
+}
+
+.voc-feature-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
