@@ -2,6 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 import uuid
+import json
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import func
@@ -349,7 +350,7 @@ def _handle_multipart_upload(request, user_id, user):
 
         media = MultimediaResources(
             lesson_id=lesson.lesson_id,
-            type=media_type,
+            resource_type=media_type,
             url=result["secure_url"],
             duration_seconds=result.get("duration"),
             description=descriptions[index - 1] if index - 1 < len(descriptions) else None,
@@ -586,7 +587,7 @@ def register():
     )
     
     db.session.add(row)
-    db.session.commit() 
+    db.session.commit()
     
     return {
         'message': 'Usuario demo creado exitosamente. Trial de 7 días activado.',
@@ -609,7 +610,7 @@ def register():
             }
         }
     }, 201
-
+                                                                                                                                                        
 # GET: Listar usuarios (admin ve todos, teacher ve sus estudiantes)
 @api.route('/users', methods=['GET'])
 @jwt_required()
@@ -1285,7 +1286,7 @@ def modules_private():
     return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para módulo específico
-@api.route('/modules/<int:module_id>', methods=['GET', 'PUT', 'DELETE'])
+@api.route('/modules-private/<int:module_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def module_private(module_id):
 
@@ -1767,7 +1768,7 @@ def purchases_private():
                 user_point = UserPoints(
                     user_id=user_id,
                     points=course.points,
-                    type='course',
+                    point_type='course',
                     event_description=f"Curso gratuito: {course.title}",
                     date=datetime.now(timezone.utc)
                 )
@@ -2075,7 +2076,7 @@ def purchase_detail(purchase_id):
                         user_point = UserPoints(
                             user_id=purchase.user_id,
                             points=course.points,
-                            type='course',
+                            point_type='course',
                             event_description=f"Compra #{purchase_id} del curso: {course.title} | purchase_id:{purchase_id}",
                             date=datetime.now(timezone.utc)
                         )
@@ -2266,16 +2267,6 @@ def user_points():
         if error_response:
             return error_response, status
         
-        if not data:
-            # HELPER: simple_error_response - Datos requeridos
-            return simple_error_response('Request body requerido', 400)
-        
-        required_fields = ['user_id', 'points']
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            # HELPER: simple_error_response - Campos faltantes
-            return simple_error_response('Faltan campos requeridos', 400)
-        
         user_exists = db.session.execute(
             db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
         
@@ -2286,9 +2277,10 @@ def user_points():
         row = UserPoints(
             user_id=data.get('user_id'),
             points=data.get('points'),
-            type=data.get('type', 'course'),
+            point_type=data.get('point_type', 'course'),
             event_description=data.get('event_description'),
-            date=data.get('date'))
+            date=data.get('date')
+        )
         db.session.add(row)
         db.session.commit()
         
@@ -2341,7 +2333,7 @@ def user_point(point_id):
                 return simple_error_response('Usuario no encontrado', 400)
             
         row.points = data.get('points', row.points)
-        row.type = data.get('type', row.type)
+        row.point_type = data.get('point_type', row.point_type)
         row.event_description = data.get(
             'event_description', row.event_description)
         row.date = data.get('date', row.date)
@@ -2815,12 +2807,14 @@ def multimedia_resources():
             # HELPER: simple_error_response - Orden duplicado
             return simple_error_response('Ya existe un recurso con este orden', 409)
         
-        row = MultimediaResources(type=data.get('type'),
-                                  url=data.get('url'),
-                                  duration_seconds=data.get('duration_seconds'),
-                                  description=data.get('description'),
-                                  order=data.get('order'),
-                                  lesson_id=data.get('lesson_id'))
+        row = MultimediaResources(
+            resource_type=data.get('type'),
+            url=data.get('url'),
+            duration_seconds=data.get('duration_seconds'),
+            description=data.get('description'),
+            order=data.get('order'),
+            lesson_id=data.get('lesson_id')
+        )
         db.session.add(row)
         db.session.commit()
         
@@ -2869,7 +2863,7 @@ def multimedia_resource(resource_id):
             if data['type'] not in allowed_types:
                 # HELPER: simple_error_response - Tipo inválido
                 return simple_error_response('Tipo de recurso inválido', 400)
-            row.type = data['type']
+            row.resource_type = data['type']
         
         if 'url' in data:
             if not data['url'].startswith(('http://', 'https://')):
@@ -2971,7 +2965,7 @@ def stripe_webhook():
                             user_point = UserPoints(
                                 user_id=purchase.user_id,
                                 points=course.points,
-                                type='course_purchase',
+                                point_type='course_purchase',
                                 event_description=f"Compra {purchase.purchase_id} del curso: {course.title}",
                                 date=datetime.now(timezone.utc)
                             )

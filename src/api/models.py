@@ -19,9 +19,9 @@ class Users(db.Model):
     registration_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     trial_end_date = db.Column(db.DateTime, nullable=True)
     last_access = db.Column(db.DateTime, nullable=True)
-    deleted_at = db.Column(db.DateTime, nullable=True)  # ✅ AGREGADO
-    original_email = db.Column(db.String(100), nullable=True)  # ✅ AGREGADO
-    deletion_uuid = db.Column(db.String(36), nullable=True)  # ✅ AGREGADO
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    original_email = db.Column(db.String(100), nullable=True)
+    deletion_uuid = db.Column(db.String(36), nullable=True)
 
     def __repr__(self):
         return f'<User: {self.user_id} - {self.first_name} {self.last_name}>'
@@ -55,7 +55,6 @@ class Courses(db.Model):
     points = db.Column(db.Integer, default=0, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.user_id'))
     
-    
     creator = db.relationship('Users', foreign_keys=[created_by],
                               backref=db.backref('courses_created', lazy='dynamic'))
 
@@ -69,21 +68,22 @@ class Courses(db.Model):
             "description": self.description,
             "price": float(self.price) if self.price else 0,
             "is_active": self.is_active,
-            "created_by": self.created_by,  # Solo ID
+            "created_by": self.created_by,
             "creation_date": self.creation_date.isoformat() if self.creation_date else None,
             "points": self.points
         }
+
 
 class Modules(db.Model):
     __tablename__ = "modules"
     module_id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(150), nullable=False)
-    order = db.Column(db.Integer, nullable=False)  # ✅ CAMBIADO: nullable=False
-    points = db.Column(db.Integer, default=0, nullable=False)  # ✅ CAMBIADO: default=0, nullable=False
-    is_active = db.Column(db.Boolean(), default=True, nullable=False)  # ✅ AGREGADO
+    order = db.Column(db.Integer, nullable=False)
+    points = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean(), default=True, nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id', ondelete='CASCADE'))
-    course_to = db.relationship('Courses', foreign_keys=[course_id],
-                                backref=db.backref('modules_to', lazy='select'))
+    course = db.relationship('Courses', foreign_keys=[course_id],
+                                backref=db.backref('modules', lazy='select'))
 
     __table_args__ = (
         UniqueConstraint('course_id', 'order', name='uq_module_order_per_course'),
@@ -98,7 +98,7 @@ class Modules(db.Model):
             "title": self.title,
             "order": self.order,
             "points": self.points,
-            "is_active": self.is_active,  # ✅ AGREGADO
+            "is_active": self.is_active,
             "course_id": self.course_id
         }
 
@@ -106,13 +106,13 @@ class Modules(db.Model):
 class Lessons(db.Model):
     __tablename__ = "lessons"
     lesson_id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(150), nullable=False)  # ✅ CAMBIADO: nullable=False
-    content = db.Column(db.Text, nullable=False)  # ✅ CAMBIADO: nullable=False
+    title = db.Column(db.String(150), nullable=False)
+    content = db.Column(db.Text, nullable=False)
     learning_objective = db.Column(db.Text, nullable=True)
     signs_taught = db.Column(db.String(600), unique=True, nullable=True)
-    order = db.Column(db.Integer, nullable=False)  # ✅ CAMBIADO: nullable=False
+    order = db.Column(db.Integer, nullable=False)
     trial_visible = db.Column(db.Boolean, default=False)
-    is_active = db.Column(db.Boolean(), default=True, nullable=False)  # ✅ AGREGADO
+    is_active = db.Column(db.Boolean(), default=True, nullable=False)
     module_id = db.Column(db.Integer, db.ForeignKey('modules.module_id', ondelete='CASCADE'))
     module_to = db.relationship('Modules', foreign_keys=[module_id],
                                 backref=db.backref('lessons_list', lazy='select'))
@@ -133,7 +133,7 @@ class Lessons(db.Model):
             "signs_taught": self.signs_taught,
             "order": self.order,
             "trial_visible": self.trial_visible,
-            "is_active": self.is_active,  # ✅ AGREGADO
+            "is_active": self.is_active,
             "module_id": self.module_id
         }
 
@@ -152,6 +152,7 @@ class Purchases(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='RESTRICT'))
     user_to = db.relationship('Users', foreign_keys=[user_id],
                               backref=db.backref('users_to_purchases', lazy='select'))
+    stripe_payment_intent_id = db.Column(db.String(255), nullable=True)
 
     __table_args__ = (
         UniqueConstraint('user_id', 'course_id', name='uq_user_course_purchase'),
@@ -169,7 +170,8 @@ class Purchases(db.Model):
             "status": self.status,
             "start_date": self.start_date.isoformat() if self.start_date else None,
             "course_id": self.course_id,
-            "user_id": self.user_id
+            "user_id": self.user_id,
+            "stripe_payment_intent_id": self.stripe_payment_intent_id
         }
 
 
@@ -177,7 +179,7 @@ class UserPoints(db.Model):
     __tablename__ = "user_points"
     point_id = db.Column(db.Integer, primary_key=True)
     points = db.Column(db.Integer, nullable=False)
-    type = db.Column(db.Enum('lesson', 'module', 'course', name='type_user_points'), nullable=False, default="course")
+    point_type = db.Column(db.Enum('lesson', 'module', 'course', name='type_user_points'), nullable=False, default="course")
     event_description = db.Column(db.String(255), nullable=True)
     date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id', ondelete='CASCADE'))
@@ -185,14 +187,14 @@ class UserPoints(db.Model):
                               backref=db.backref('users_to_points', lazy='select'))
 
     def __repr__(self):
-        return f'<UserPoints {self.point_id} - {self.type}>'
+        return f'<UserPoints {self.point_id} - {self.point_type}>'
 
     def serialize(self):
         return {
             "point_id": self.point_id,
             "user_id": self.user_id,
             "points": self.points,
-            "type": self.type,
+            "point_type": self.point_type,
             "event_description": self.event_description,
             "date": self.date.isoformat() if self.date else None
         }
@@ -280,7 +282,7 @@ class UserAchievements(db.Model):
 class MultimediaResources(db.Model):
     __tablename__ = "multimedia_resources"
     resource_id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.Enum('video', 'image', 'gif', 'animation', 'document', name='type_multimedia_resources'), nullable=False)
+    resource_type = db.Column(db.Enum('video', 'image', 'gif', 'animation', 'document', name='type_multimedia_resources'), nullable=False)
     url = db.Column(db.String(500), nullable=False)
     duration_seconds = db.Column(db.Integer, nullable=True)
     description = db.Column(db.String(255), nullable=True)
@@ -296,7 +298,7 @@ class MultimediaResources(db.Model):
         return {
             "resource_id": self.resource_id,
             "lesson_id": self.lesson_id,
-            "type": self.type,
+            "resource_type": self.resource_type,
             "url": self.url,
             "duration_seconds": self.duration_seconds,
             "description": self.description,
