@@ -22,6 +22,7 @@ import { CourseDetail } from "./pages/CourseDetail.jsx";
 import { Profile } from "./pages/Profile.jsx";
 import { QuienesSomos } from "./pages/QuienesSomos.jsx";
 import { PublicCourses } from "./pages/PublicCourses.jsx";
+import { Planes } from "./pages/Planes.jsx";
 
 
 
@@ -53,6 +54,7 @@ export const router = createBrowserRouter(
         <Route path="/courses/:courseId" element={<CourseDetail />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/quienes-somos" element={<QuienesSomos />} />
+        <Route path="/planes" element={<Planes />} />
       </Route>
     )
 );

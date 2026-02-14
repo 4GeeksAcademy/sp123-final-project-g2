@@ -10,6 +10,7 @@ export const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,6 +44,7 @@ export const Login = () => {
       });
       return;
     }
+    
 
     localStorage.setItem("token", result.access_token);
     dispatch({ type: "handle_token", payload: result.access_token });
@@ -77,15 +79,32 @@ export const Login = () => {
             style={styles.input}
           />
 
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-          />
+          {/* Password con icono Bootstrap */}
+          <div style={{ position: "relative", width: "100%" }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={styles.input}
+            />
 
-          <span style={styles.forgot}>Recordar contraseña</span>
+            <i
+              className={`bi ${
+                showPassword ? "bi-eye-slash-fill" : "bi-eye-fill"
+              }`}
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: "absolute",
+                right: "15px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                cursor: "pointer",
+                fontSize: "18px",
+                color: "#555",
+              }}
+            ></i>
+          </div>
 
           <button
             type="submit"
@@ -103,6 +122,7 @@ export const Login = () => {
     </div>
   );
 };
+
 
 const styles = {
   page: {
@@ -129,7 +149,7 @@ const styles = {
     filter: "blur(2px)",
     transform: "scale(1.02)",
     zIndex: -2,
-    pointerEvents: "none", // 🔥 evita bloquear clicks
+    pointerEvents: "none", 
   },
 
   overlay: {
