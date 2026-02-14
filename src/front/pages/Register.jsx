@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
-import { signup } from "../services/auth.js"
+import { register } from "../services/auth.js"
 
-export const Signup = () => {
+export const Register = () => {
 
   const [formData, setFormData] =
     useState({
@@ -25,7 +25,7 @@ export const Signup = () => {
   const handleSubmit = async (event) => {
     event.preventDefault()
     console.log("DATA ENVIADA:", formData)
-    const result = await signup(formData)
+    const result = await register(formData)
     if (!result) {
       alert("No se pudo crear el usuario")
       return

@@ -33,6 +33,15 @@ export const Navbar = () => {
       navigate("/login");
     }
   };
+
+  const handleRegistro = () => {
+  dispatch({
+    type: "handle_alert",
+    payload: { text: "", color: "", display: false }
+  });
+
+  navigate("/register"); // asegúrate que la ruta exista
+};
   return (
     <nav
       className="navbar navbar-expand-lg navbar-dark shadow px-4"
@@ -115,16 +124,14 @@ export const Navbar = () => {
           >
             {store.isLogged ? "Cerrar sesión" : "Iniciar sesión"}
           </button>
-{/* 
+
           {!store.isLogged && (
             <button
               onClick={handleRegistro}
-              className="btn btn-warning fw-bold rounded-pill px-3"
-            >
+              className="btn btn-warning fw-bold rounded-pill px-3" >
               Registro
             </button> 
           )}
- */}
         </div>
       </div>
     </nav>

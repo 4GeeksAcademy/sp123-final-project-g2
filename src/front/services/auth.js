@@ -41,8 +41,8 @@ export const protect = async () => {
   return await response.json()
 }
 
-export const signup = async (dataToSend) => {
-  const url = `${HOSTFINAL}/api/users`
+export const register = async (dataToSend) => {
+  const url = `${HOSTFINAL}/api/register`
 
   const options = {
     method: "POST",
