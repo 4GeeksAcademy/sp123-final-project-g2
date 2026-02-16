@@ -422,3 +422,141 @@
   font-weight: 600;
   font-size: 0.95rem;
 }
+/*Dashboard
+
+.dashboard-title {
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* Tarjeta suave superior */
+.dashboard-soft-card {
+  border: 0;
+  border-radius: 18px;
+  background: #f3f6ff;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+}
+
+/* Cards clicables estilo "widget" */
+.dashboard-stat-card {
+  text-decoration: none;
+  border: 0;
+  border-radius: 22px;
+  background: #f2f2f2;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  color: inherit;
+  display: block;
+  min-height: 190px;
+}
+
+.dashboard-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.12);
+}
+
+.dashboard-icon {
+  font-size: 34px;
+  color: #243bff; /* azul como la imagen */
+}
+
+.dashboard-label {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2b2b2b;
+}
+
+.dashboard-big {
+  font-size: 64px;
+  font-weight: 900;
+  color: #243bff;
+  line-height: 1;
+  margin-top: 8px;
+}
+
+.dashboard-big-suffix {
+  font-size: 18px;
+  color: #7a7a7a;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+.dashboard-subtext {
+  margin-top: 10px;
+  color: #6d6d6d;
+  font-size: 14px;
+}
+
+.dashboard-progress {
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 10px;
+  background: rgba(36, 59, 255, 0.12);
+}
+
+.dashboard-progress .progress-bar {
+  background: #243bff;
+  border-radius: 999px;
+}
+
+/* Plan badge del header */
+.plan-badge {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Chip arriba a la derecha dentro de cards */
+.plan-chip {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+/* Colores por plan */
+.badge-premium {
+  background: #f3c56c;
+  color: #4b2e00;
+}
+
+.badge-pro {
+  background: #9fe3ff;
+  color: #00324b;
+}
+
+.badge-free {
+  background: #e6e6e6;
+  color: #333;
+}
+.dashboard-hero-text {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ICONO GRANDE DERECHO */
+
+.dashboard-hero-icon {
+  font-size: 72px;
+  color: #243bff;
+  opacity: 0.15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;
+}
+
+/* responsive: debajo en móvil */
+@media (max-width: 768px) {
+  .dashboard-hero-icon {
+    font-size: 54px;
+    margin-top: 10px;
+    opacity: 0.2;
+  }
+
+  .dashboard-hero-title {
+    font-size: 32px;
+  }
+}
