@@ -7,11 +7,10 @@ from datetime import datetime, timezone, timedelta
 import random
 from werkzeug.security import generate_password_hash
 
-# ============================================
-# CONFIGURACIÓN DE IMPORTS
-# ============================================
 
-# Obtener la ruta absoluta del proyecto
+
+
+# Obtener la ruta absoluta 
 current_dir = os.path.dirname(os.path.abspath(__file__))  # src/api/
 parent_dir = os.path.dirname(current_dir)                  # src/
 root_dir = os.path.dirname(parent_dir)                     # raíz del proyecto
