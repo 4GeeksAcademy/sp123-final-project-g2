@@ -422,3 +422,276 @@
   font-weight: 600;
   font-size: 0.95rem;
 }
+/*Dashboard
+
+.dashboard-title {
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* Tarjeta suave superior */
+.dashboard-soft-card {
+  border: 0;
+  border-radius: 18px;
+  background: #f3f6ff;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+}
+
+/* Cards clicables estilo "widget" */
+.dashboard-stat-card {
+  text-decoration: none;
+  border: 0;
+  border-radius: 22px;
+  background: #f2f2f2;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  color: inherit;
+  display: block;
+  min-height: 190px;
+}
+
+.dashboard-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.12);
+}
+
+.dashboard-icon {
+  font-size: 34px;
+  color: #243bff; /* azul como la imagen */
+}
+
+.dashboard-label {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2b2b2b;
+}
+
+.dashboard-big {
+  font-size: 64px;
+  font-weight: 900;
+  color: #243bff;
+  line-height: 1;
+  margin-top: 8px;
+}
+
+.dashboard-big-suffix {
+  font-size: 18px;
+  color: #7a7a7a;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+.dashboard-subtext {
+  margin-top: 10px;
+  color: #6d6d6d;
+  font-size: 14px;
+}
+
+.dashboard-progress {
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 10px;
+  background: rgba(36, 59, 255, 0.12);
+}
+
+.dashboard-progress .progress-bar {
+  background: #243bff;
+  border-radius: 999px;
+}
+
+/* Plan badge del header */
+.plan-badge {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Chip arriba a la derecha dentro de cards */
+.plan-chip {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+/* Colores por plan */
+.badge-premium {
+  background: #f3c56c;
+  color: #4b2e00;
+}
+
+.badge-pro {
+  background: #9fe3ff;
+  color: #00324b;
+}
+
+.badge-free {
+  background: #e6e6e6;
+  color: #333;
+}
+.dashboard-hero-text {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ICONO GRANDE DERECHO */
+
+.dashboard-hero-icon {
+  font-size: 72px;
+  color: #243bff;
+  opacity: 0.15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;
+}
+
+/* responsive: debajo en móvil */
+@media (max-width: 768px) {
+  .dashboard-hero-icon {
+    font-size: 54px;
+    margin-top: 10px;
+    opacity: 0.2;
+  }
+
+  .dashboard-hero-title {
+    font-size: 32px;
+  }
+}
+/* progreso 
+/* ============ MY PROGRESS ============ */
+
+.progress-search {
+  position: relative;
+  width: min(520px, 100%);
+}
+
+.progress-search i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.6;
+}
+
+.progress-search input.form-control {
+  padding-left: 38px;
+  border-radius: 14px;
+  height: 44px;
+}
+
+/* Cards de progreso */
+.progress-card {
+  border: 0;
+  border-radius: 18px;
+}
+
+.progress-card-title {
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.progress-card-kicker {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.progress-card-pct {
+  font-weight: 900;
+  color: #243bff;
+}
+
+/* Barra moderna */
+.progress-modern {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(36, 59, 255, 0.12);
+  overflow: hidden;
+}
+
+.progress-modern .progress-bar {
+  background: #243bff;
+  border-radius: 999px;
+}
+
+.progress-group-title {
+  font-weight: 900;
+  letter-spacing: -0.4px;
+}
+
+/* ====== DEMO MODE ====== */
+.demo-hero {
+  background: linear-gradient(135deg, #eef4ff, #f7f9ff);
+  border: 2px dashed #3b82f6;
+}
+
+.demo-card {
+  opacity: 0.85;
+  transition: all 0.25s ease;
+}
+
+.demo-card:hover {
+  opacity: 1;
+  transform: translateY(-4px);
+}
+
+/* Botón registrarse destacado */
+.demo-register-btn {
+  font-weight: 600;
+  padding: 10px 22px;
+  box-shadow: 0 6px 18px rgba(59,130,246,.25);
+}
+
+/* ====== ADMIN ====== */
+.admin-panel-card {
+  border: 2px solid #0d6efd;
+  background: linear-gradient(180deg, #ffffff, #f5f9ff);
+}
+
+/* ====== BADGES (si aún no los tienes) ====== */
+.badge-free { background:#6c757d; }
+.badge-pro { background:#0d6efd; }
+.badge-premium { background:linear-gradient(90deg,#ffb300,#ff7a00); }
+
+/* HERO */
+.dashboard-hero{
+  background: linear-gradient(135deg,#f6f9ff,#eef3ff);
+  border-radius:16px;
+  padding:22px 26px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* CARDS */
+.dash-card{
+  border-radius:16px;
+  border:none;
+  transition:.25s;
+}
+
+.dash-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 12px 25px rgba(0,0,0,.08);
+}
+
+.dash-card-icon{
+  font-size:2.2rem;
+  color:#0d6efd;
+}
+
+.dash-highlight{
+  border:2px solid #0d6efd;
+  background:linear-gradient(180deg,#ffffff,#f5f9ff);
+}
+
+/* DEMO */
+.demo-hero{
+  background:linear-gradient(135deg,#eef4ff,#f8fbff);
+  border:2px dashed #0d6efd;
+}
+
