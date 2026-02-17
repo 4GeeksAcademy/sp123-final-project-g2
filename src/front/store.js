@@ -33,12 +33,6 @@ export const initialStore=()=>{
 export default function storeReducer(store, action = {}) {
   switch(action.type){
 
-    case "set_my_progress":
-      return {...store, my_progress: action.payload };
-
-    case "set_achievements":
-      return {...store, achievements: action.payload };
-
     case 'set_achievements':
       return {...store, achievements: Array.isArray(action.payload) ? action.payload: []};
      
