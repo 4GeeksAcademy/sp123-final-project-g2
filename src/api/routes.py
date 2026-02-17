@@ -1939,7 +1939,7 @@ def purchase_detail(purchase_id):
         stripe_info = None
         if purchase.stripe_payment_intent_id:
             try:
-                stripe_result = stripe_service.retrieve_payment_intent(
+                _result = stripe_service.retrieve_payment_intent(
                     purchase.stripe_payment_intent_id
                 )
                 

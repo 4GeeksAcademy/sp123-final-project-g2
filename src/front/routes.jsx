@@ -23,6 +23,7 @@ import { Profile } from "./pages/Profile.jsx";
 import { QuienesSomos } from "./pages/QuienesSomos.jsx";
 import { PublicCourses } from "./pages/PublicCourses.jsx";
 import { Planes } from "./pages/Planes.jsx";
+import { PasarelaPago } from "./pages/PasarelaPago.jsx";
 
 
 
@@ -55,6 +56,7 @@ export const router = createBrowserRouter(
         <Route path="/profile" element={<Profile />} />
         <Route path="/quienes-somos" element={<QuienesSomos />} />
         <Route path="/planes" element={<Planes />} />
+        <Route path="/pasarela-pago" element={<PasarelaPago />} />
       </Route>
     )
 );
