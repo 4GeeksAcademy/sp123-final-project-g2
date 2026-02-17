@@ -252,7 +252,7 @@ export const MyProgress = () => {
           />
         </div>
 
-        <Link to="/cursos" className="btn btn-outline-primary">
+        <Link to="api/courses-private" className="btn btn-outline-primary">
           <i className="bi bi-journal-text me-2"></i>
           Ir a cursos
         </Link>

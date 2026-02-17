@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import useGlobalReducer from "../hooks/useGlobalReducer";
-
+import { Link } from "react-router-dom";
+ 
+ 
 const apiFetchJson = (url, options) => {
   return fetch(url, options).then((res) =>
     res
@@ -9,7 +11,7 @@ const apiFetchJson = (url, options) => {
       .then((data) => ({ ok: res.ok, status: res.status, data }))
   );
 };
-
+ 
 // Acepta: array directamente, o { courses: [...] }, o { data: [...] }
 const normalizeCourses = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -17,33 +19,45 @@ const normalizeCourses = (payload) => {
   if (payload && Array.isArray(payload.data)) return payload.data;
   return [];
 };
-
+ 
 const formatDate = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
 };
-
+ 
 const formatPrice = (n) => {
   const num = Number(n);
   if (Number.isNaN(num)) return "—";
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(num);
 };
-
+ 
 export const Courses = () => {
   const { store } = useGlobalReducer();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
+ 
+  if (!store.isLogged) {
+    return (
+      <div className="container mt-4 text-center">
+        <h4>Debes iniciar sesión para ver el dashboard</h4>
+      </div>
+    );
+  }
+ 
+  const user = store.current_user || {};
+  const role = String(user.role || "student").toLowerCase().trim();
+  const isAdmin = role === "admin";
+  const isTeacher = role === "teacher" || role === "tacher";
   // Evita dobles // al concatenar
   const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
   const endpoint = `${base}/api/courses-private`;
-
+ 
   const loadCourses = () => {
     setLoading(true);
     setErrorMsg("");
-
+ 
     apiFetchJson(endpoint, {
       method: "GET",
       headers: {
@@ -55,10 +69,9 @@ export const Courses = () => {
         // Logs útiles para detectar 403/401/ruta mal, etc.
         console.log("GET", endpoint, "->", status);
         console.log("Response data:", data);
-
         if (!ok) {
           setCourses([]);
-
+ 
           // Mensajes típicos para 401/403
           if (status === 401 || status === 422) {
             setErrorMsg("Token inválido o expirado. Vuelve a iniciar sesión.");
@@ -67,16 +80,20 @@ export const Courses = () => {
           if (status === 403) {
             setErrorMsg(
               data?.msg ||
-                "Acceso denegado (403). Revisa CORS/permisos del backend para este endpoint."
+              "Acceso denegado (403). Revisa CORS/permisos del backend para este endpoint."
             );
             return;
           }
-
+ 
           setErrorMsg(data?.msg || "Error cargando cursos.");
           return;
         }
-
-        setCourses(normalizeCourses(data));
+        if (data?.count === 0) {
+          setCourses([]);
+          setErrorMsg("No se encontraron cursos para este usuario.");
+          return;
+        }
+        setCourses(normalizeCourses(data.results));
       })
       .catch(() => {
         setCourses([]);
@@ -84,18 +101,18 @@ export const Courses = () => {
       })
       .finally(() => setLoading(false));
   };
-
+ 
   useEffect(() => {
     if (store.isLogged && store.token) loadCourses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.isLogged, store.token]);
-
+ 
   const subtitle = useMemo(() => {
     if (loading) return "Cargando…";
     if (errorMsg) return "No se pudieron cargar los cursos";
     return courses.length === 1 ? "1 curso" : `${courses.length} cursos`;
   }, [loading, errorMsg, courses.length]);
-
+ 
   if (!store.isLogged) {
     return (
       <div className="container py-5 text-center">
@@ -105,7 +122,7 @@ export const Courses = () => {
       </div>
     );
   }
-
+ 
   return (
     <div className="container py-4">
       {/* Header */}
@@ -117,13 +134,13 @@ export const Courses = () => {
           </h1>
           <div className="text-secondary">{subtitle}</div>
         </div>
-
+ 
         <button className="btn btn-outline-secondary" onClick={loadCourses} disabled={loading}>
           <i className="bi bi-arrow-clockwise me-2"></i>
           Recargar
         </button>
       </div>
-
+ 
       {/* Error */}
       {errorMsg && (
         <div className="alert alert-danger d-flex align-items-start" role="alert">
@@ -137,7 +154,7 @@ export const Courses = () => {
           </div>
         </div>
       )}
-
+ 
       {/* Loading */}
       {loading && (
         <div className="d-flex justify-content-center py-5">
@@ -147,7 +164,7 @@ export const Courses = () => {
           </div>
         </div>
       )}
-
+ 
       {/* Empty */}
       {!loading && !errorMsg && courses.length === 0 && (
         <div className="text-center py-5 border rounded-4 bg-light">
@@ -156,13 +173,13 @@ export const Courses = () => {
           <p className="text-secondary mb-0">Si existen en la BD, revisa permisos/CORS del endpoint.</p>
         </div>
       )}
-
+ 
       {/* Cards */}
       {!loading && !errorMsg && courses.length > 0 && (
         <div className="row g-3">
           {courses.map((course) => {
             const isActive = !!course.is_active;
-
+ 
             return (
               <div key={course.course_id} className="col-12 col-md-6 col-lg-4">
                 <div className="card h-100 shadow-sm border-0 rounded-4">
@@ -175,7 +192,7 @@ export const Courses = () => {
                         >
                           <i className="bi bi-mortarboard-fill fs-5"></i>
                         </div>
-
+ 
                         <div className="min-w-0">
                           <h5 className="card-title mb-0 text-truncate" title={course.title}>
                             {course.title}
@@ -184,19 +201,20 @@ export const Courses = () => {
                             <i className="bi bi-hash me-1"></i>
                             {course.course_id}
                           </small>
+ 
                         </div>
                       </div>
-
+ 
                       <span className={`badge ${isActive ? "text-bg-success" : "text-bg-secondary"}`}>
                         <i className={`bi ${isActive ? "bi-check-circle" : "bi-pause-circle"} me-1`}></i>
                         {isActive ? "Activo" : "Inactivo"}
                       </span>
                     </div>
-
+ 
                     <p className="card-text text-secondary mb-3" style={{ minHeight: 64 }}>
                       {course.description?.trim() ? course.description : "Sin descripción."}
                     </p>
-
+ 
                     <div className="d-flex flex-wrap gap-2 mb-4">
                       <span className="badge text-bg-light border">
                         <i className="bi bi-cash-coin me-1"></i>
@@ -211,16 +229,16 @@ export const Courses = () => {
                         {formatDate(course.creation_date)}
                       </span>
                     </div>
-
+ 
                     <div className="mt-auto d-flex gap-2">
-                      <button className="btn btn-outline-primary w-100">
+                      <Link className="btn btn-outline-primary w-100" to={`/modules?course_id=${course.course_id}`}>
                         <i className="bi bi-eye me-2"></i>
                         Ver
-                      </button>
-                      <button className="btn btn-outline-secondary" disabled title="Editar">
+                      </Link>
+                      <button className="btn btn-outline-secondary" disabled={!isAdmin && !isTeacher} title="Editar">
                         <i className="bi bi-pencil-square"></i>
                       </button>
-                      <button className="btn btn-outline-danger" disabled title="Eliminar">
+                      <button className="btn btn-outline-danger" disabled={!isAdmin && !isTeacher} title="Eliminar">
                         <i className="bi bi-trash"></i>
                       </button>
                     </div>
@@ -230,7 +248,10 @@ export const Courses = () => {
             );
           })}
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };
+ 
+ 

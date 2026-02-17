@@ -1,9 +1,9 @@
 import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
 import { Link } from "react-router-dom";
-
+ 
 export const Dashboard = () => {
   const { store } = useGlobalReducer();
-
+ 
   if (!store.isLogged) {
     return (
       <div className="container mt-4 text-center">
@@ -11,29 +11,30 @@ export const Dashboard = () => {
       </div>
     );
   }
-
+ 
   const user = store.current_user || {};
-
+ 
   const planRaw = user.plan || user.subscription || user.membership || "FREE";
   const plan = String(planRaw).toUpperCase();
-
+ 
   const role = String(user.role || "student").toLowerCase().trim();
   const isAdmin = role === "admin";
   const isTeacher = role === "teacher" || role === "tacher";
   const isDemo = role === "demo";
-
+  const isStudent = !isAdmin && !isTeacher && !isDemo;
+ 
   const myProgress = Array.isArray(store.my_progress) ? store.my_progress : [];
   const completedCourses = myProgress.filter(p => p?.completed === true).length;
   const totalCourses = myProgress.length;
   const progressPct = totalCourses > 0 ? Math.round((completedCourses / totalCourses) * 100) : 0;
-
+ 
   const achievementsCount = Array.isArray(store.achievements) ? store.achievements.length : 0;
-
+ 
   // ================= DEMO =================
   if (isDemo) {
     return (
       <div className="container mt-4">
-
+ 
         <div className="p-5 mb-4 rounded-4 demo-hero text-center">
           <i className="bi bi-stars display-4 text-primary"></i>
           <h1 className="fw-bold mt-3">Estás en modo Demo</h1>
@@ -42,21 +43,21 @@ export const Dashboard = () => {
             <i className="bi bi-person-plus-fill me-2"></i> Crear cuenta
           </Link>
         </div>
-
+ 
         <div className="row g-4">
-          <DemoCard icon="bi-collection-play" title="Explorar cursos" to="/courses"/>
-          <DemoCard icon="bi-credit-card" title="Ver planes" to="/suscripciones"/>
-          <DemoCard icon="bi-info-circle" title="Cómo funciona" to="/about"/>
-          <DemoCard icon="bi-chat-dots" title="Contacto" to="/contact"/>
+          <DemoCard icon="bi-collection-play" title="Explorar cursos" to="/courses" />
+          <DemoCard icon="bi-credit-card" title="Ver planes" to="/suscripciones" />
+          <DemoCard icon="bi-info-circle" title="Cómo funciona" to="/about" />
+          <DemoCard icon="bi-chat-dots" title="Contacto" to="/contact" />
         </div>
       </div>
     );
   }
-
+ 
   // ================= NORMAL =================
   return (
     <div className="container mt-4">
-
+ 
       {/* HERO */}
       <div className="dashboard-hero mb-4">
         <div>
@@ -66,7 +67,7 @@ export const Dashboard = () => {
           </h2>
           <div className="text-muted">Bienvenido a tu panel</div>
         </div>
-
+ 
         <div className="text-end">
           <div className="badge bg-primary fs-6 p-2">
             <i className="bi bi-star-fill me-1"></i> {plan}
@@ -76,36 +77,44 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
-
+ 
       {/* CARDS */}
       <div className="row g-4">
-
-        <DashCard icon="bi-credit-card" title="Suscripción" value={plan} to="/suscripciones"/>
-
+ 
+        <DashCard icon="bi-credit-card" title="Suscripción" value={plan} to="/suscripciones" />
+ 
         {!isTeacher && (
-          <DashCard icon="bi-mortarboard" title="Cursos completados" value={`${completedCourses}/${totalCourses}`} to="/my-progress"/>
+          <DashCard icon="bi-mortarboard" title="Cursos completados" value={`${completedCourses}/${totalCourses}`} to="/my-progress" />
         )}
-
+ 
         {!isTeacher && (
-          <DashCard icon="bi-graph-up" title="Progreso" value={`${progressPct}%`} to="/my-progress"/>
+          <DashCard icon="bi-graph-up" title="Progreso" value={`${progressPct}%`} to="/my-progress" />
         )}
-
-        <DashCard icon="bi-trophy" title="Logros" value={achievementsCount} to="/achievements"/>
-
+ 
+        <DashCard icon="bi-trophy" title="Logros" value={achievementsCount} to="/achievements" />
+ 
         {isTeacher && (
-          <DashCard icon="bi-cloud-arrow-up" title="Subir vídeos" value="Gestionar contenido" to="/upload-videos" highlight/>
+          <DashCard icon="bi-cloud-arrow-up" title="Subir vídeos" value="Gestionar contenido" to="/upload-videos" highlight />
         )}
-
+ 
         {isAdmin && (
-          <DashCard icon="bi-gear" title="Panel admin" value="Administrar plataforma" to="/admin" highlight/>
+          <DashCard icon="bi-gear" title="Panel admin" value="Administrar plataforma" to="/admin" highlight />
         )}
-
+ 
+        {isStudent && (
+          <DashCard icon="bi-people" title="Explorar cursos" value="Explorar catálogo" to="/courses" />
+        )}
+ 
+        {isTeacher && (
+          <DashCard icon="bi-people" title="Explorar tus cursos" value="Explorar catálogo" to="/courses" />
+        )}
+ 
       </div>
     </div>
   );
 };
-
-
+ 
+ 
 // ---------- COMPONENTES ----------
 const DashCard = ({ icon, title, value, to, highlight }) => (
   <div className="col-12 col-md-6">
@@ -122,7 +131,7 @@ const DashCard = ({ icon, title, value, to, highlight }) => (
     </Link>
   </div>
 );
-
+ 
 const DemoCard = ({ icon, title, to }) => (
   <div className="col-12 col-md-6">
     <Link to={to} className="text-decoration-none">
@@ -133,4 +142,6 @@ const DemoCard = ({ icon, title, to }) => (
     </Link>
   </div>
 );
-
+ 
+ 
+ 
