@@ -52,6 +52,48 @@ export const Navbar = () => {
               Quiénes somos
             </Link>
           </li>
+
+          {store.isLogged && (
+            <li className="nav-item dropdown">
+              <a
+                className="nav-link dropdown-toggle fw-semibold"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+              >
+                Mi cuenta
+              </a>
+
+              <ul className="dropdown-menu">
+                <li>
+                  <Link className="dropdown-item" to="/courses">
+                   Mis cursos
+                  </Link>
+                </li>
+
+                <li>
+                  <Link className="dropdown-item" to="/my-progress">
+                   Mi progreso
+                  </Link>
+                </li>
+
+                <li>
+                  <Link className="dropdown-item" to="/achievements">
+                   Mis logros
+                  </Link>
+                </li>
+
+                {(store.current_user?.role === "student" ||
+                  store.current_user?.role === "demo") && (
+                  <li>
+                    <Link className="dropdown-item" to="/pasarela-pago">
+                     Comprar cursos
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            </li>
+          )}
         </ul>
 
         <div className="d-flex align-items-center gap-3">
