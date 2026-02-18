@@ -3,6 +3,7 @@ import rigoImageUrl from "../assets/img/rigo-baby.jpg";
 import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
 import { Link, useNavigate } from "react-router-dom";
 
+
 export const Home = () => {
   const navigate = useNavigate();
 
@@ -227,47 +228,238 @@ export const Home = () => {
       </main>
 
       {/* FOOTER */}
-      <footer className="voc-footer pt-5 pb-4">
-        <div className="container">
-          <div className="row gy-4">
-            <div className="col-md-4">
-              <div className="voc-brand fs-4">+vocal</div>
-            </div>
+<footer className="voc-footer pt-5 pb-4">
+  <div className="container">
+    <div className="row gy-4">
+      <div className="col-md-4">
+        <div className="voc-brand fs-4">+vocal</div>
+      </div>
 
-            <div className="col-6 col-md-2">
-              <div className="fw-bold mb-2">Planes</div>
-              <div className="d-grid gap-1">
-                <a href="/planes">Planes</a>
-                <a href="/login">Inicio de Sesión</a>
-              </div>
-            </div>
-
-            <div className="col-6 col-md-3">
-              <div className="fw-bold mb-2">Políticas</div>
-              <div className="d-grid gap-1">
-                <a href="/privacidad">Política de privacidad</a>
-                <a href="/aviso-legal">Aviso legal</a>
-                <a href="/cookies">Política de cookies</a>
-              </div>
-            </div>
-
-            <div className="col-6 col-md-3">
-              <div className="fw-bold mb-2">Sobre</div>
-              <div className="d-grid gap-1">
-                <a href="/sobre-nosotros" onClick={handleAbout}>
-                  Quiénes somos
-                </a>
-                <a href="/contacto" onClick={handleContact}>
-                  Contacto
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <hr className="my-4 opacity-25" />
-          <div className="small">© {new Date().getFullYear()} +vocal</div>
+      <div className="col-6 col-md-2">
+        <div className="fw-bold mb-2">Planes</div>
+        <div className="d-grid gap-1">
+          <a href="/planes">Planes</a>
+          <a href="/login">Inicio de Sesión</a>
         </div>
-      </footer>
+      </div>
+
+      <div className="col-6 col-md-3">
+        <div className="fw-bold mb-2">Políticas</div>
+
+        {/* En vez de links a rutas: botones Bootstrap que abren modales */}
+        <div className="d-grid gap-1">
+          <button
+            type="button"
+            className="btn btn-link p-0 text-start"
+            data-bs-toggle="modal"
+            data-bs-target="#privacyModal"
+          >
+            Política de privacidad
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-link p-0 text-start"
+            data-bs-toggle="modal"
+            data-bs-target="#legalModal"
+          >
+            Aviso legal
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-link p-0 text-start"
+            data-bs-toggle="modal"
+            data-bs-target="#cookiesModal"
+          >
+            Política de cookies
+          </button>
+        </div>
+      </div>
+
+      <div className="col-6 col-md-3">
+        <div className="fw-bold mb-2">Sobre</div>
+        <div className="d-grid gap-1">
+          <a href="/sobre-nosotros" onClick={handleAbout}>
+            Quiénes somos
+          </a>
+          <a href="/contacto" onClick={handleContact}>
+            Contacto
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <hr className="my-4 opacity-25" />
+    <div className="small">© {new Date().getFullYear()} +vocal</div>
+  </div>
+
+  {/* ===================== MODAL PRIVACIDAD ===================== */}
+  <div
+    className="modal fade"
+    id="privacyModal"
+    tabIndex="-1"
+    aria-labelledby="privacyModalLabel"
+    aria-hidden="true"
+  >
+    <div className="modal-dialog modal-dialog-scrollable modal-lg">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title" id="privacyModalLabel">
+            Política de privacidad
+          </h5>
+          <button
+            type="button"
+            className="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Cerrar"
+          />
+        </div>
+
+        <div className="modal-body">
+          {/* Sustituye por tu texto real */}
+          <p className="mb-2">
+            <strong>Responsable:</strong> +vocal
+          </p>
+          <p className="mb-2">
+            <strong>Finalidad:</strong> Gestionar consultas y el uso de la
+            plataforma.
+          </p>
+          <p className="mb-2">
+            <strong>Legitimación:</strong> Consentimiento del usuario / ejecución
+            de un servicio.
+          </p>
+          <p className="mb-2">
+            <strong>Conservación:</strong> El tiempo necesario para la finalidad
+            y obligaciones legales.
+          </p>
+          <p className="mb-3">
+            <strong>Derechos:</strong> Acceso, rectificación, supresión,
+            oposición, limitación y portabilidad.
+          </p>
+
+          <hr />
+
+          <p className="mb-0 text-secondary">
+            Aquí pega el texto completo (cláusulas, destinatarios, transferencias
+            internacionales si aplica, medidas de seguridad, etc.).
+          </p>
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* ===================== MODAL AVISO LEGAL ===================== */}
+  <div
+    className="modal fade"
+    id="legalModal"
+    tabIndex="-1"
+    aria-labelledby="legalModalLabel"
+    aria-hidden="true"
+  >
+    <div className="modal-dialog modal-dialog-scrollable modal-lg">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title" id="legalModalLabel">
+            Aviso legal
+          </h5>
+          <button
+            type="button"
+            className="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Cerrar"
+          />
+        </div>
+
+        <div className="modal-body">
+          {/* Sustituye por tus datos reales */}
+          <p className="mb-2">
+            <strong>Titular:</strong> +vocal
+          </p>
+          <p className="mb-2">
+            <strong>NIF/CIF:</strong> (tu dato)
+          </p>
+          <p className="mb-2">
+            <strong>Domicilio:</strong> (tu dirección)
+          </p>
+          <p className="mb-2">
+            <strong>Email:</strong> (tu email)
+          </p>
+
+          <hr />
+
+          <p className="mb-0 text-secondary">
+            Aquí va el contenido del aviso legal: condiciones de uso,
+            responsabilidad, propiedad intelectual, enlaces externos, etc.
+          </p>
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* ===================== MODAL COOKIES ===================== */}
+  <div
+    className="modal fade"
+    id="cookiesModal"
+    tabIndex="-1"
+    aria-labelledby="cookiesModalLabel"
+    aria-hidden="true"
+  >
+    <div className="modal-dialog modal-dialog-scrollable modal-lg">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title" id="cookiesModalLabel">
+            Política de cookies
+          </h5>
+          <button
+            type="button"
+            className="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Cerrar"
+          />
+        </div>
+
+        <div className="modal-body">
+          <p className="mb-3">
+            Aquí describes qué cookies se usan y su finalidad.
+          </p>
+
+          <ul className="mb-0">
+            <li>Cookies técnicas (necesarias para el funcionamiento).</li>
+            <li>Cookies analíticas (si usas analítica).</li>
+            <li>Cookies de marketing (si aplica).</li>
+          </ul>
+
+          <hr />
+
+          <p className="mb-0 text-secondary">
+            Añade también cómo el usuario puede configurar/retirar el
+            consentimiento.
+          </p>
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
 
       {/* MENSAJE ÉXITO */}
       {successMessage && (

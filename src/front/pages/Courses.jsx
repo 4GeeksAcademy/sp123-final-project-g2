@@ -175,81 +175,171 @@ export const Courses = () => {
       )}
  
       {/* Cards */}
-      {!loading && !errorMsg && courses.length > 0 && (
-        <div className="row g-3">
-          {courses.map((course) => {
-            const isActive = !!course.is_active;
- 
-            return (
-              <div key={course.course_id} className="col-12 col-md-6 col-lg-4">
-                <div className="card h-100 shadow-sm border-0 rounded-4">
-                  <div className="card-body d-flex flex-column">
-                    <div className="d-flex justify-content-between align-items-start mb-2">
-                      <div className="d-flex align-items-center gap-2">
-                        <div
-                          className="rounded-circle bg-light d-flex align-items-center justify-content-center"
-                          style={{ width: 42, height: 42 }}
-                        >
-                          <i className="bi bi-mortarboard-fill fs-5"></i>
-                        </div>
- 
-                        <div className="min-w-0">
-                          <h5 className="card-title mb-0 text-truncate" title={course.title}>
-                            {course.title}
-                          </h5>
-                          <small className="text-secondary">
-                            <i className="bi bi-hash me-1"></i>
-                            {course.course_id}
-                          </small>
- 
-                        </div>
-                      </div>
- 
-                      <span className={`badge ${isActive ? "text-bg-success" : "text-bg-secondary"}`}>
-                        <i className={`bi ${isActive ? "bi-check-circle" : "bi-pause-circle"} me-1`}></i>
-                        {isActive ? "Activo" : "Inactivo"}
-                      </span>
-                    </div>
- 
-                    <p className="card-text text-secondary mb-3" style={{ minHeight: 64 }}>
-                      {course.description?.trim() ? course.description : "Sin descripción."}
-                    </p>
- 
-                    <div className="d-flex flex-wrap gap-2 mb-4">
-                      <span className="badge text-bg-light border">
-                        <i className="bi bi-cash-coin me-1"></i>
-                        {formatPrice(course.price)}
-                      </span>
-                      <span className="badge text-bg-light border">
-                        <i className="bi bi-star-fill me-1"></i>
-                        {course.points ?? 0} pts
-                      </span>
-                      <span className="badge text-bg-light border">
-                        <i className="bi bi-calendar-event me-1"></i>
-                        {formatDate(course.creation_date)}
-                      </span>
-                    </div>
- 
-                    <div className="mt-auto d-flex gap-2">
-                      <Link className="btn btn-outline-primary w-100" to={`/modules?course_id=${course.course_id}`}>
-                        <i className="bi bi-eye me-2"></i>
-                        Ver
-                      </Link>
-                      <button className="btn btn-outline-secondary" disabled={!isAdmin && !isTeacher} title="Editar">
-                        <i className="bi bi-pencil-square"></i>
-                      </button>
-                      <button className="btn btn-outline-danger" disabled={!isAdmin && !isTeacher} title="Eliminar">
-                        <i className="bi bi-trash"></i>
-                      </button>
-                    </div>
+{!loading && !errorMsg && courses.length > 0 && (
+  <div className="row g-4 justify-content-center">
+    {courses.map((course) => {
+      const isActive = !!course.is_active;
+
+      return (
+        <div key={course.course_id} className="col-12 col-md-6 col-xl-5">
+          <div
+            className="card h-100 border-0 rounded-4 shadow-sm overflow-hidden"
+            style={{
+              minHeight: 360,
+              background: "#ffffff",
+              transition: "all .25s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-6px)";
+              e.currentTarget.style.boxShadow = "0 20px 50px rgba(0,0,0,.12)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0px)";
+              e.currentTarget.style.boxShadow = "";
+            }}
+          >
+            {/* Barra superior */}
+            <div
+              style={{
+                height: 8,
+                background: isActive
+                  ? "linear-gradient(90deg,#198754,#20c997)"
+                  : "linear-gradient(90deg,#6c757d,#adb5bd)",
+              }}
+            />
+
+            <div className="card-body d-flex flex-column p-4 pt-4">
+
+              {/* HEADER */}
+              <div className="d-flex justify-content-between align-items-start mb-3">
+
+                <div className="d-flex align-items-center gap-3 min-w-0">
+                  <div
+                    className="rounded-4 d-flex align-items-center justify-content-center flex-shrink-0"
+                    style={{
+                      width: 56,
+                      height: 56,
+                      background:
+                        "linear-gradient(135deg, rgba(13,110,253,.18), rgba(111,66,193,.18))",
+                      border: "1px solid rgba(13,110,253,.15)",
+                    }}
+                  >
+                    <i className="bi bi-mortarboard-fill fs-4"></i>
+                  </div>
+
+                  <div className="min-w-0">
+                    <h5 className="fw-semibold mb-1 text-truncate" title={course.title}>
+                      {course.title}
+                    </h5>
+                    <small className="text-secondary">
+                      <i className="bi bi-hash me-1"></i>
+                      {course.course_id}
+                    </small>
                   </div>
                 </div>
+
+                {/* BADGE CORREGIDO */}
+                <div className="ps-2">
+                  <span
+                    className={`badge ${
+                      isActive ? "bg-success" : "bg-secondary"
+                    }`}
+                    style={{
+                      borderRadius: 999,
+                      padding: ".6rem .9rem",
+                      fontSize: ".85rem",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <i
+                      className={`bi ${
+                        isActive ? "bi-check-circle-fill" : "bi-pause-circle-fill"
+                      } me-1`}
+                    ></i>
+                    {isActive ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
               </div>
-            );
-          })}
+
+              {/* DESCRIPCIÓN */}
+              <p className="text-secondary mb-3" style={{ minHeight: 70 }}>
+                {course.description?.trim()
+                  ? course.description
+                  : "Sin descripción."}
+              </p>
+
+              {/* INFO CHIPS */}
+              <div className="d-flex flex-wrap gap-2 mb-4">
+                <span className="badge rounded-pill px-3 py-2 text-primary bg-primary-subtle fw-semibold">
+                  <i className="bi bi-cash-coin me-1"></i>
+                  {formatPrice(course.price)}
+                </span>
+
+                <span className="badge rounded-pill px-3 py-2 text-warning bg-warning-subtle fw-semibold">
+                  <i className="bi bi-star-fill me-1"></i>
+                  {course.points ?? 0} pts
+                </span>
+
+                <span
+                  className="badge rounded-pill px-3 py-2 fw-semibold"
+                  style={{ background: "#efe9ff", color: "#5a2ea6" }}
+                >
+                  <i className="bi bi-calendar-event me-1"></i>
+                  {formatDate(course.creation_date)}
+                </span>
+              </div>
+
+              {/* BOTONES */}
+              <div className="mt-auto d-flex gap-2">
+                <Link
+                  className="btn w-100 text-white"
+                  to={`/modules?course_id=${course.course_id}`}
+                  style={{
+                    borderRadius: 16,
+                    background:
+                      "linear-gradient(135deg,#0d6efd,#6f42c1)",
+                    border: "none",
+                    fontWeight: 500,
+                  }}
+                >
+                  <i className="bi bi-eye me-2"></i>
+                  Ver
+                </Link>
+
+                <button
+                  className="btn btn-outline-secondary"
+                  style={{ borderRadius: 16, width: 50 }}
+                  disabled={!isAdmin && !isTeacher}
+                  onClick={() => handleEditCourse?.(course)}
+                >
+                  <i className="bi bi-pencil-square"></i>
+                </button>
+
+                <button
+                  className="btn btn-outline-danger"
+                  style={{ borderRadius: 16, width: 50 }}
+                  disabled={!isAdmin && !isTeacher}
+                  onClick={() => handleDeleteCourse?.(course)}
+                >
+                  <i className="bi bi-trash"></i>
+                </button>
+              </div>
+
+              {/* FOOTER */}
+              <div className="mt-3 small text-muted d-flex align-items-center">
+                <i className="bi bi-info-circle me-2"></i>
+                Detalles claros de precio, puntos y fecha.
+              </div>
+
+            </div>
+          </div>
         </div>
-      )
-      }
+      );
+    })}
+  </div>
+)}
+
+
     </div >
   );
 };
