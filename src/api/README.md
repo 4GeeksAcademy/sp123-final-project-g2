@@ -1,4 +1,6 @@
-# 🌱 Proyecto Flask - Guía Completa de Usuarios de Prueba y Reset de Base de Datos
+# 🤟 +Vocal - Guía Completa de Usuarios de Prueba y Documentación de API
+
+Este repositorio contiene el núcleo lógico de **+Vocal**, una plataforma educativa diseñada para enseñar lengua de señas con enfoque regional y gramatical, permitiendo la inclusión real en servicios de atención al público.
 
 ---
 
@@ -6,17 +8,14 @@
 - [Usuarios de Prueba](#-usuarios-de-prueba)
 - [Todos los Comandos Disponibles](#-todos-los-comandos-disponibles)
 - [Verificación de Datos](#-verificación-de-datos)
-- [Solución de Problemas Comunes](#-solución-de-problemas-comunes)
-- [Resumen de Datos Generados](#-resumen-de-datos-generados)
-- [Flujo de Trabajo Recomendado](#-flujo-de-trabajo-recomendado)
-- [Notas Importantes](#-notas-importantes)
-- [Configuración del Pipfile](#-configuración-del-pipfile)
+- [Listado completo de rutas - Sistema educativo LSE](#-listado-completo-de-rutas---sistema-educativo-lse)
+- [Flujo de Trabajo (Workflow)](#-flujo-de-trabajo-workflow)
 
 ---
 
 ## 👥 Usuarios de Prueba
 
-La semilla crea **9 usuarios** con diferentes roles. Todos tienen la misma contraseña para facilitar las pruebas: **`Password123!`**
+La semilla crea **9 usuarios** con diferentes roles para testear el ecosistema. Todos comparten la misma contraseña: **`Password123!`**
 
 | # | Rol | Nombre | Email | Puntos | Admin | Trial |
 |---|-----|--------|-------|--------|-------|-------|
@@ -37,7 +36,7 @@ La semilla crea **9 usuarios** con diferentes roles. Todos tienen la misma contr
 ### Comandos de Reset y Datos
 | Comando | Descripción |
 |---------|-------------|
-| `pipenv run reset-db` | **Reset completo**: migrate + upgrade + seed (TODO EN UNO) |
+| `pipenv run reset-db` | **Reset completo**: migrate + upgrade + seed (Limpieza total) |
 | `pipenv run seed` | Ejecuta solo la semilla (repuebla datos sin migrar) |
 | `pipenv run insert-test-data` | Comando alternativo para insertar datos de prueba |
 
@@ -45,178 +44,78 @@ La semilla crea **9 usuarios** con diferentes roles. Todos tienen la misma contr
 | Comando | Descripción |
 |---------|-------------|
 | `pipenv run init` | Inicializa migraciones (solo primera vez) |
-| `pipenv run migrate` | Crea una nueva migración |
-| `pipenv run upgrade` | Aplica todas las migraciones pendientes |
-| `pipenv run downgrade` | Revierte la última migración |
+| `pipenv run migrate` | Crea una nueva migración detectando cambios en modelos |
+| `pipenv run upgrade` | Aplica todas las migraciones pendientes a la base de datos |
+| `pipenv run downgrade` | Revierte la última migración aplicada |
 
-### Comandos del Servidor
+### Comandos del Servidor y Utilidades
 | Comando | Descripción |
 |---------|-------------|
-| `pipenv run start` | Inicia el servidor Flask en puerto 3001 |
-| `pipenv run local` | Inicia el servidor con heroku local |
-
-### Comandos de Utilidades
-| Comando | Descripción |
-|---------|-------------|
-| `pipenv run reset_db` | Ejecuta script bash para reset de migraciones |
-| `pipenv run deploy` | Muestra instrucciones para desplegar |
-
-### Comandos Flask Directos
-| Comando | Descripción |
-|---------|-------------|
+| `pipenv run start` | Inicia el servidor Flask en puerto **3001** |
 | `pipenv run flask shell` | Abre el shell interactivo de Flask |
-| `pipenv run flask db migrate -m "mensaje"` | Crear migración con mensaje descriptivo |
-| `pipenv run flask db downgrade <revision>` | Revertir a una versión específica |
-| `pipenv run flask db current` | Muestra la migración actual |
-| `pipenv run flask db history` | Muestra el historial de migraciones |
+| `pipenv run flask db history` | Muestra el historial cronológico de cambios |
 
-### Comandos de Python Directos
-| Comando | Descripción |
-|---------|-------------|
-| `pipenv run python src/api/seed.py` | Ejecuta la semilla directamente |
-| `PYTHONPATH=. pipenv run python src/api/seed.py` | Ejecuta semilla con path explícito |
+---
 
 ## ✅ Verificación de Datos
 
-### Verificar Usuarios
-    `pipenv run flask shell`
+### Verificar Usuarios mediante Shell
+Para asegurar que los 9 usuarios fueron cargados correctamente:
+1. Ejecuta: `pipenv run flask shell`
+2. En la consola: `from api.models import User; print(User.query.all())`
+
 ---
 
-# LISTADO COMPLETO DE RUTAS - SISTEMA EDUCATIVO LSE
+# ✅ LISTADO COMPLETO DE RUTAS - SISTEMA EDUCATIVO LSE
 
 **Base URL:** `/api`
 
 ---
 
 ## 1. AUTENTICACIÓN Y USUARIOS
-
 | Método | Ruta | Descripción | Acceso |
 |--------|------|-------------|--------|
 | POST | `/register` | Registrar nuevo usuario demo | Público |
-| POST | `/login` | Iniciar sesión | Público |
-| GET | `/protected` | Verificar token y obtener datos del usuario | Usuario autenticado |
-| POST | `/change-password` | Cambiar contraseña del usuario autenticado | Usuario autenticado |
-| POST | `/delete-my-account` | Eliminar cuenta propia (desactivación lógica) | Usuario autenticado |
-| GET | `/users` | Listar usuarios (admin ve todos, teacher ve sus estudiantes) | Admin, Teacher |
-| GET | `/users/<user_id>` | Ver detalles de un usuario específico | Según permisos |
-| PUT | `/users/<user_id>` | Actualizar datos de usuario | Según permisos |
-| DELETE | `/users/<user_id>` | Eliminar usuario (solo admin) | Admin |
+| POST | `/login` | Iniciar sesión (Retorna JWT) | Público |
+| GET | `/protected` | Verificar token y obtener datos del usuario | Autenticado |
+| POST | `/delete-my-account` | Desactivación lógica de cuenta | Autenticado |
+| GET | `/users` | Listar usuarios (según permisos) | Admin, Teacher |
+| DELETE | `/users/<user_id>` | Eliminar usuario definitivamente | Solo Admin |
 
----
-
-## 2. CURSOS
-
+## 2. CURSOS Y MÓDULOS
 | Método | Ruta | Descripción | Acceso |
 |--------|------|-------------|--------|
-| GET | `/courses-public` | Listar cursos públicos (solo activos) | Público |
-| GET | `/courses-private` | Listar todos los cursos | Usuario autenticado |
-| POST | `/courses-private` | Crear nuevo curso | Admin, Teacher |
-| GET | `/courses-private/<course_id>` | Ver detalles de un curso | Usuario autenticado |
-| PUT | `/courses-private/<course_id>` | Actualizar curso | Admin, Teacher (propios) |
-| DELETE | `/courses-private/<course_id>` | Eliminar curso | Admin, Teacher (propios) |
+| GET | `/courses-public` | Listar catálogo de cursos activos | Público |
+| POST | `/courses-private` | Crear nuevo curso educativo | Admin, Teacher |
+| POST | `/modules-private` | Crear nuevo módulo dentro de un curso | Admin, Teacher |
+| DELETE | `/modules-private/<module_id>` | Eliminar módulo | Admin, Teacher |
 
----
-
-## 3. MÓDULOS
-
+## 3. LECCIONES Y MULTIMEDIA
 | Método | Ruta | Descripción | Acceso |
 |--------|------|-------------|--------|
-| GET | `/modules-public` | Listar módulos públicos | Público |
-| GET | `/modules-private` | Listar todos los módulos | Usuario autenticado |
-| POST | `/modules-private` | Crear nuevo módulo | Admin, Teacher |
-| GET | `/modules-private/<module_id>` | Ver detalles de un módulo | Usuario autenticado |
-| PUT | `/modules-private/<module_id>` | Actualizar módulo | Admin, Teacher (propios) |
-| DELETE | `/modules-private/<module_id>` | Eliminar módulo | Admin, Teacher (propios) |
+| GET | `/lessons-private` | Listar todas las lecciones y gramática | Autenticado |
+| POST | `/lessons-private` | Cargar nueva lección (Video/Señas) | Admin, Teacher |
+| POST | `/multimedia-resources` | Subir nuevo recurso de interpretación | Admin, Teacher |
 
----
-
-## 4. LECCIONES
-
+## 4. GAMIFICACIÓN Y COMPRAS
 | Método | Ruta | Descripción | Acceso |
 |--------|------|-------------|--------|
-| GET | `/lessons-public` | Listar lecciones públicas | Público |
-| GET | `/lessons-private` | Listar todas las lecciones (con multimedia) | Usuario autenticado |
-| POST | `/lessons-private` | Crear nueva lección (JSON o multipart) | Admin, Teacher |
-| GET | `/lessons-private/<lesson_id>` | Ver detalles de una lección (con multimedia) | Usuario autenticado |
-| PUT | `/lessons-private/<lesson_id>` | Actualizar lección | Admin, Teacher (propios) |
-| DELETE | `/lessons-private/<lesson_id>` | Eliminar lección | Admin, Teacher (propios) |
+| GET | `/points-ranking` | Ver tabla de posiciones global | Autenticado |
+| POST | `/purchases-private` | Procesar transacción (Stripe/Gratis) | Autenticado |
+| POST | `/stripe-webhook` | Procesar eventos automáticos de Stripe | Público (Firma Stripe) |
 
 ---
 
-## 5. COMPRAS
+## 🔄 Flujo de Trabajo (Workflow)
 
-| Método | Ruta | Descripción | Acceso |
-|--------|------|-------------|--------|
-| POST | `/purchases-public` | Verificar curso para compra (info previa) | Público |
-| GET | `/purchases-private` | Listar compras del usuario | Usuario autenticado |
-| POST | `/purchases-private` | Procesar compra de curso (gratis o pago) | Usuario autenticado |
-| GET | `/purchases/<purchase_id>` | Ver detalles de una compra | Según permisos |
-| PUT | `/purchases/<purchase_id>` | Actualizar compra (admin) | Admin |
-| DELETE | `/purchases/<purchase_id>` | Eliminar compra (admin) | Admin |
+Para entender cómo opera **+Vocal**, el ciclo de vida de un usuario es el siguiente:
 
----
+1.  **Registro:** El usuario se registra como perfil `Demo` (Acceso limitado).
+2.  **Exploración:** Accede a las rutas `-public` para ver el catálogo disponible.
+3.  **Conversión:** Realiza una compra vía `/purchases-private`. El `Stripe-Webhook` detecta el pago exitoso y actualiza su rol a `Student`.
+4.  **Aprendizaje:** El estudiante consume lecciones y módulos. Al completar cada uno, el endpoint `/user-points` le asigna puntaje basado en su desempeño.
+5.  **Competencia:** El usuario escala en el `/points-ranking` y desbloquea insignias en `/achievements`.
+6.  **Certificación:** Al completar el flujo, el usuario está capacitado para actuar como intérprete en contextos regionales específicos.
 
-## 6. PUNTOS Y RANKING
-
-| Método | Ruta | Descripción | Acceso |
-|--------|------|-------------|--------|
-| GET | `/points-ranking` | Ver ranking de puntos | Usuario autenticado |
-| GET | `/user-points` | Listar registros de puntos | Según permisos |
-| POST | `/user-points` | Crear registro de puntos | Admin, Teacher |
-| GET | `/user-points/<point_id>` | Ver detalle de punto | Según permisos |
-| PUT | `/user-points/<point_id>` | Actualizar punto | Admin, Teacher |
-| DELETE | `/user-points/<point_id>` | Eliminar punto | Admin, Teacher |
-
----
-
-## 7. PROGRESO DE USUARIO
-
-| Método | Ruta | Descripción | Acceso |
-|--------|------|-------------|--------|
-| GET | `/userprogress` | Listar progreso de usuarios | Según permisos |
-| POST | `/userprogress` | Crear registro de progreso | Admin, Teacher |
-| GET | `/userprogress/<progress_id>` | Ver detalle de progreso | Según permisos |
-| PUT | `/userprogress/<progress_id>` | Actualizar progreso | Admin, Teacher |
-| DELETE | `/userprogress/<progress_id>` | Eliminar progreso | Admin |
-
----
-
-## 8. LOGROS
-
-| Método | Ruta | Descripción | Acceso |
-|--------|------|-------------|--------|
-| GET | `/achievements` | Listar todos los logros | Usuario autenticado |
-| POST | `/achievements` | Crear nuevo logro | Admin |
-| GET | `/achievements/<achievement_id>` | Ver detalle de logro | Usuario autenticado |
-| PUT | `/achievements/<achievement_id>` | Actualizar logro | Admin |
-| DELETE | `/achievements/<achievement_id>` | Eliminar logro | Admin |
-| GET | `/user-achievements` | Listar logros obtenidos por usuarios | Según permisos |
-| POST | `/user-achievements` | Asignar logro a usuario | Admin, Teacher |
-| GET | `/user-achievements/<user_achievement_id>` | Ver detalle de asignación | Según permisos |
-| PUT | `/user-achievements/<user_achievement_id>` | Actualizar asignación | Admin, Teacher |
-| DELETE | `/user-achievements/<user_achievement_id>` | Eliminar asignación | Admin |
-
----
-
-## 9. RECURSOS MULTIMEDIA
-
-| Método | Ruta | Descripción | Acceso |
-|--------|------|-------------|--------|
-| GET | `/multimedia-resources` | Listar todos los recursos multimedia | Usuario autenticado |
-| POST | `/multimedia-resources` | Crear recurso multimedia | Admin, Teacher |
-| GET | `/multimedia-resources/<resource_id>` | Ver detalle de recurso | Usuario autenticado |
-| PUT | `/multimedia-resources/<resource_id>` | Actualizar recurso | Admin, Teacher |
-| DELETE | `/multimedia-resources/<resource_id>` | Eliminar recurso | Admin |
-
----
-
-## 10. WEBHOOKS
-
-| Método | Ruta | Descripción | Acceso |
-|--------|------|-------------|--------|
-| POST | `/stripe-webhook` | Webhook para eventos de Stripe | Público (verificado por firma) |
-
----
-```bash
-
-
+***
+*Documentación generada para el equipo de desarrollo de +Vocal.*
