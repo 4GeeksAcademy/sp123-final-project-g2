@@ -608,8 +608,6 @@ def simple_error_response(message, status_code=400):
 """ --- RUTAS --- """
 
 # POST: Login de usuario
-
-
 @api.route("/login", methods=["POST"])
 def login():
 
@@ -660,12 +658,9 @@ def login():
     }, 200
 
 # GET: Ruta protegida para verificar token
-
-
 @api.route("/protected", methods=["GET"])
 @jwt_required()
 def protected():
-
     # HELPER: validate_user_role - Verificar usuario autenticado
     user, response_body, status_code = validate_user_role()
     if response_body:
@@ -694,16 +689,13 @@ def protected():
             response_body['trial_limits'] = {
                 'max_courses': 1,
                 'max_modules_per_course': 1,
-                'max_lessons_per_module': 8,
-                'remaining_lessons': 'Hasta 8',
-                'message': 'Puedes acceder a 1 curso, 1 módulo y máximo 8 lecciones durante tu trial.'
+                'max_lessons_per_module': 3, 
+                'message': 'Puedes acceder a 1 curso, 1 módulo y máximo 3 lecciones durante tu trial.'
             }
 
     return response_body, 200
 
 # POST: Registrar nuevo usuario demo
-
-
 @api.route('/register', methods=['POST'])
 def register():
 
@@ -789,8 +781,6 @@ def register():
     }, 201
 
 # GET: Listar usuarios (admin ve todos, teacher ve sus estudiantes)
-
-
 @api.route('/users', methods=['GET'])
 @jwt_required()
 def get_users():
@@ -816,7 +806,7 @@ def get_users():
 
         results = [row.serialize() for row in rows]
 
-        # HELPER: build_pagination_response - Enviar respuesta paginada
+        # HELPER: build_pagination_response - Envía la tupla (dict, status) directamente
         return build_pagination_response(
             results=results,
             total_count=total_query,
@@ -830,7 +820,8 @@ def get_users():
             db.select(Users)
             .join(Purchases, Users.user_id == Purchases.user_id)
             .join(Courses, Purchases.course_id == Courses.course_id)
-            .where(Courses.created_by == teacher_id, Users.role == 'student')
+            .where(Courses.created_by == teacher_id)
+            .where(Users.role.in_(['student', 'demo']))
             .distinct()
             .order_by(Users.user_id)
             .limit(per_page)
@@ -838,17 +829,15 @@ def get_users():
         ).scalars()
 
         total_count_query = db.session.execute(
-            db.select(db.func.count()).select_from(Users)
+            db.select(db.func.count(db.distinct(Users.user_id)))
             .join(Purchases, Users.user_id == Purchases.user_id)
             .join(Courses, Purchases.course_id == Courses.course_id)
-            .where(Courses.created_by == teacher_id, Users.role == 'student')
-            .distinct()
+            .where(Courses.created_by == teacher_id)
+            .where(Users.role.in_(['student', 'demo']))
         ).scalar()
 
-        students = list(students_query)
-
         results = []
-        for student in students:
+        for student in students_query:
             results.append({
                 'user_id': student.user_id,
                 'first_name': student.first_name,
@@ -858,19 +847,19 @@ def get_users():
                 'role': student.role,
             })
 
-        # HELPER: simple_success_response - Enviar respuesta simple
-        return simple_success_response(
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_success_response(
             results,
             f'Estudiantes en tus cursos ({len(results)} estudiantes)'
         )
+        return response_data, status_code
 
     else:
-        # HELPER: simple_error_response - Error de permisos
-        return simple_error_response('No autorizado para ver listado de usuarios', 403)
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_error_response('No autorizado para ver listado de usuarios', 403)
+        return response_data, status_code
 
 # GET/PUT/DELETE: Operaciones CRUD para usuario específico
-
-
 @api.route('/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def user(user_id):
@@ -887,13 +876,12 @@ def user(user_id):
     ).scalar()
 
     if not target_user:
-        # HELPER: simple_error_response - Usuario no encontrado
-        return simple_error_response(f'Usuario {user_id} no encontrado', 404)
+        response_data, status_code = simple_error_response(f'Usuario {user_id} no encontrado', 404)
+        return response_data, status_code
 
     if request.method == 'GET':
         if is_admin:
             user_data = target_user.serialize()
-
         elif user_role == 'teacher':
             if current_user_id == user_id:
                 user_data = {
@@ -913,8 +901,7 @@ def user(user_id):
                     .join(Courses, Purchases.course_id == Courses.course_id)
                     .where(
                         Purchases.user_id == user_id,
-                        Courses.created_by == current_user_id,
-                        target_user.role == 'student'
+                        Courses.created_by == current_user_id
                     )
                 ).scalar()
 
@@ -929,13 +916,12 @@ def user(user_id):
                         'is_active': target_user.is_active,
                     }
                 else:
-                    # HELPER: simple_error_response - Sin permisos
-                    return simple_error_response('No autorizado para ver este usuario', 403)
-
+                    response_data, status_code = simple_error_response('No autorizado para ver este usuario', 403)
+                    return response_data, status_code
         else:
             if current_user_id != user_id:
-                # HELPER: simple_error_response - Sin permisos
-                return simple_error_response('No autorizado para ver este usuario', 403)
+                response_data, status_code = simple_error_response('No autorizado para ver este usuario', 403)
+                return response_data, status_code
 
             user_data = {
                 'user_id': target_user.user_id,
@@ -949,34 +935,30 @@ def user(user_id):
                 'trial_end_date': target_user.trial_end_date.isoformat() if target_user.trial_end_date else None,
             }
 
-        # HELPER: simple_success_response - Respuesta exitosa
-        return simple_success_response(user_data, f'Detalles del usuario {user_id}')
+        response_data, status_code = simple_success_response(user_data, f'Detalles del usuario {user_id}')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not is_admin and current_user_id != user_id:
-            # HELPER: simple_error_response - Sin permisos para actualizar
-            return simple_error_response('No autorizado para actualizar este usuario', 403)
+            response_data, status_code = simple_error_response('No autorizado para actualizar este usuario', 403)
+            return response_data, status_code
 
-        # HELPER: validate_request_json - Validar datos recibidos
         data, error_response, status = validate_request_json()
         if error_response:
             return error_response, status
 
-        admin_only_fields = ['is_admin', 'role',
-                             'current_points', 'trial_end_date', 'is_active']
+        admin_only_fields = ['is_admin', 'role', 'current_points', 'trial_end_date', 'is_active']
         if not is_admin:
             for field in admin_only_fields:
                 if field in data:
-                    # HELPER: simple_error_response - Sin permisos para modificar campo
-                    return simple_error_response(f'No autorizado para modificar {field}', 403)
+                    response_data, status_code = simple_error_response(f'No autorizado para modificar {field}', 403)
+                    return response_data, status_code
 
         if 'email' in data and data['email'] != target_user.email:
-            existing = db.session.execute(
-                db.select(Users).where(Users.email == data['email'])
-            ).scalar()
+            existing = db.session.execute(db.select(Users).where(Users.email == data['email'])).scalar()
             if existing:
-                # HELPER: simple_error_response - Email ya existe
-                return simple_error_response('El email ya está registrado', 409)
+                response_data, status_code = simple_error_response('El email ya está registrado', 409)
+                return response_data, status_code
 
         if 'first_name' in data:
             target_user.first_name = data['first_name'].strip()
@@ -989,65 +971,55 @@ def user(user_id):
             if 'role' in data:
                 target_user.role = data['role']
             if 'current_points' in data:
-                points = data['current_points']
-                if not isinstance(points, int) or points < 0:
-                    # HELPER: simple_error_response - Puntos inválidos
-                    return simple_error_response('Los puntos deben ser un número entero no negativo', 400)
-                target_user.current_points = points
+                if not isinstance(data['current_points'], int) or data['current_points'] < 0:
+                    response_data, status_code = simple_error_response('Puntos deben ser un número entero no negativo', 400)
+                    return response_data, status_code
+                target_user.current_points = data['current_points']
             if 'is_active' in data:
                 target_user.is_active = bool(data['is_active'])
             if 'is_admin' in data:
                 target_user.is_admin = bool(data['is_admin'])
             if 'trial_end_date' in data:
                 try:
-                    trial_date = datetime.fromisoformat(
-                        data['trial_end_date'].replace('Z', '+00:00'))
-                    target_user.trial_end_date = trial_date
+                    target_user.trial_end_date = datetime.fromisoformat(data['trial_end_date'].replace('Z', '+00:00'))
                 except ValueError:
-                    # HELPER: simple_error_response - Fecha inválida
-                    return simple_error_response('Formato de fecha inválido para trial_end_date', 400)
+                    response_data, status_code = simple_error_response('Formato de fecha inválido para trial_end_date', 400)
+                    return response_data, status_code
 
         db.session.commit()
 
-        if is_admin:
-            response_data = target_user.serialize()
-        else:
-            response_data = {
-                'user_id': target_user.user_id,
-                'first_name': target_user.first_name,
-                'last_name': target_user.last_name,
-                'email': target_user.email,
-                'role': target_user.role,
-                'current_points': target_user.current_points,
-                'is_active': target_user.is_active,
-                'registration_date': target_user.registration_date.isoformat() if target_user.registration_date else None,
-                'trial_end_date': target_user.trial_end_date.isoformat() if target_user.trial_end_date else None,
-            }
+        res_data = target_user.serialize() if is_admin else {
+            'user_id': target_user.user_id,
+            'first_name': target_user.first_name,
+            'last_name': target_user.last_name,
+            'email': target_user.email,
+            'role': target_user.role,
+            'current_points': target_user.current_points,
+            'is_active': target_user.is_active,
+            'registration_date': target_user.registration_date.isoformat() if target_user.registration_date else None,
+            'trial_end_date': target_user.trial_end_date.isoformat() if target_user.trial_end_date else None,
+        }
 
-        # HELPER: simple_success_response - Usuario actualizado
-        return simple_success_response(response_data, f'Usuario {user_id} actualizado')
+        response_data, status_code = simple_success_response(res_data, f'Usuario {user_id} actualizado')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not is_admin:
-            # HELPER: simple_error_response - Solo admin puede eliminar
-            return simple_error_response('Solo administradores pueden eliminar usuarios', 403)
+            response_data, status_code = simple_error_response('Solo administradores pueden eliminar usuarios', 403)
+            return response_data, status_code
 
         if current_user_id == user_id:
-            # HELPER: simple_error_response - No puede eliminarse a sí mismo
-            return simple_error_response('No puedes eliminarte a ti mismo', 400)
+            response_data, status_code = simple_error_response('No puedes eliminarte a ti mismo', 400)
+            return response_data, status_code
 
         db.session.delete(target_user)
         db.session.commit()
+        response_data, status_code = simple_success_response({}, f'Usuario {user_id} eliminado')
+        return response_data, status_code
 
-        # HELPER: simple_success_response - Usuario eliminado
-        return simple_success_response({}, f'Usuario {user_id} eliminado')
-
-    # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # POST: Cambiar contraseña de usuario
-
-
 @api.route('/change-password', methods=['POST'])
 @jwt_required()
 def change_password():
@@ -1068,43 +1040,48 @@ def change_password():
         db.select(Users).where(Users.user_id == user_id)).scalar()
 
     if not db_user:
-        # HELPER: simple_error_response - Usuario no encontrado
-        return simple_error_response('Usuario no encontrado', 404)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('Usuario no encontrado', 404)
+        return response_data, status_code
 
     current_password = data.get('current_password', '')
     new_password = data.get('new_password', '')
 
     if not check_password_hash(db_user.password_hash, current_password):
-        # HELPER: simple_error_response - Contraseña incorrecta
-        return simple_error_response('Contraseña actual incorrecta', 401)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('Contraseña actual incorrecta', 401)
+        return response_data, status_code
 
     if not new_password:
-        # HELPER: simple_error_response - Nueva contraseña vacía
-        return simple_error_response('La nueva contraseña no puede estar vacía', 400)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('La nueva contraseña no puede estar vacía', 400)
+        return response_data, status_code
 
     if len(new_password) < 8:
-        # HELPER: simple_error_response - Contraseña muy corta
-        return simple_error_response('La nueva contraseña debe tener al menos 8 caracteres', 400)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('La nueva contraseña debe tener al menos 8 caracteres', 400)
+        return response_data, status_code
 
     if check_password_hash(db_user.password_hash, new_password):
-        # HELPER: simple_error_response - Contraseña igual a la actual
-        return simple_error_response('La nueva contraseña no puede ser igual a la actual', 400)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('La nueva contraseña no puede ser igual a la actual', 400)
+        return response_data, status_code
 
     db_user.password_hash = generate_password_hash(new_password)
     db.session.commit()
 
     # HELPER: simple_success_response - Contraseña actualizada
-    return simple_success_response(
+    # Desempaquetado para evitar TypeError
+    response_data, status_code = simple_success_response(
         {
             'user_id': user_id,
             'password_changed': True
         },
         'Contraseña actualizada exitosamente'
     )
+    return response_data, status_code
 
 # POST: Eliminar cuenta propia
-
-
 @api.route('/delete-my-account', methods=['POST'])
 @jwt_required()
 def delete_my_account():
@@ -1116,8 +1093,7 @@ def delete_my_account():
     user_id = user.get('user_id')
 
     # HELPER: validate_request_json - Validar confirmación
-    data, error_response, status = validate_request_json(
-        ['password', 'confirmation'])
+    data, error_response, status = validate_request_json(['password', 'confirmation'])
     if error_response:
         return error_response, status
 
@@ -1125,20 +1101,24 @@ def delete_my_account():
         db.select(Users).where(Users.user_id == user_id)).scalar()
 
     if not db_user:
-        # HELPER: simple_error_response - Usuario no encontrado
-        return simple_error_response('Usuario no encontrado', 404)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('Usuario no encontrado', 404)
+        return response_data, status_code
 
     password = data.get('password', '')
     confirmation = data.get('confirmation', '').strip().lower()
 
     if not check_password_hash(db_user.password_hash, password):
-        # HELPER: simple_error_response - Contraseña incorrecta
-        return simple_error_response('Contraseña incorrecta', 401)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('Contraseña incorrecta', 401)
+        return response_data, status_code
 
     if confirmation != 'eliminar mi cuenta':
-        # HELPER: simple_error_response - Confirmación incorrecta
-        return simple_error_response('Debes escribir "eliminar mi cuenta" para confirmar', 400)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('Debes escribir "eliminar mi cuenta" para confirmar', 400)
+        return response_data, status_code
 
+    # Lógica de borrado lógico (anonimización)
     db_user.is_active = False
     db_user.original_email = db_user.email
     deletion_uuid = uuid.uuid4().hex[:8]
@@ -1154,7 +1134,8 @@ def delete_my_account():
     db.session.commit()
 
     # HELPER: simple_success_response - Cuenta eliminada
-    return simple_success_response(
+    # Desempaquetado para evitar TypeError
+    response_data, status_code = simple_success_response(
         {
             'account_deleted': True,
             'user_id': user_id,
@@ -1164,6 +1145,7 @@ def delete_my_account():
         },
         'Cuenta eliminada exitosamente'
     )
+    return response_data, status_code
 
 # GET: Listar cursos públicos (sin autenticación)
 
@@ -1206,8 +1188,6 @@ def courses_public():
     )
 
 # GET/POST: Operaciones CRUD de cursos (privado, requiere autenticación)
-
-
 @api.route('/courses-private', methods=['GET', 'POST'])
 @jwt_required()
 def courses_private():
@@ -1221,43 +1201,31 @@ def courses_private():
     user_id = user.get('user_id')
 
     if request.method == 'GET':
-        # --- LÓGICA DE FILTRADO DINÁMICO (RESTAREMOS LO QUE YA TIENE) ---
-
-        # Buscamos los IDs de los cursos que el usuario YA tiene (comprados o en trial)
         purchased_ids_query = db.session.execute(
             db.select(Purchases.course_id).where(Purchases.user_id == user_id)
         ).scalars().all()
 
-        # Preparamos la consulta base: solo cursos que estén marcados como activos
         query = db.select(Courses).where(Courses.is_active == True)
 
-        # Si el usuario ya tiene algún curso, lo EXCLUIMOS de la lista de disponibles
         if purchased_ids_query:
             query = query.where(Courses.course_id.not_in(purchased_ids_query))
 
-        # --- PAGINACIÓN ---
         # HELPER: build_pagination_params - Obtener página y límite
         page, per_page, offset = build_pagination_params(request)
 
-        # Contamos el total resultante después de aplicar el filtro de "no repetidos"
         total_query = db.session.execute(
             db.select(db.func.count()).select_from(query.subquery())
         ).scalar()
 
-        # Ejecutamos la consulta final con orden y límites
         rows = db.session.execute(
             query.order_by(Courses.course_id).limit(per_page).offset(offset)
         ).scalars()
 
         results = [row.serialize() for row in rows]
-
-        # --- MENSAJE DINÁMICO SEGÚN EL ROL ---
+        
         message = 'Listado de cursos disponibles para tu cuenta'
-
-        # Si es DEMO y ya eligió uno, le mandamos el aviso de límite
         if user_role == 'demo' and purchased_ids_query:
             message = 'Ya seleccionaste tu curso demo. Pásate a premium para adquirir más.'
-            # Opcional: Podrías devolver results vacíos [] si quieres forzar que no vea nada más
 
         # HELPER: build_pagination_response - Enviar respuesta estandarizada
         return build_pagination_response(
@@ -1269,17 +1237,14 @@ def courses_private():
         )
 
     if request.method == 'POST':
-        # Solo Admin o Profesores pueden crear contenido
         if not is_admin and user_role != 'teacher':
             return simple_error_response('No autorizado para crear cursos, no es Administrador ni profesor', 403)
 
         # HELPER: validate_request_json - Validar campos obligatorios
-        data, error_response, status = validate_request_json(
-            ['title', 'price', 'points'])
+        data, error_response, status = validate_request_json(['title', 'price', 'points'])
         if error_response:
             return error_response, status
 
-        # Validaciones de integridad de datos
         price = data.get('price')
         if not isinstance(price, (int, float)) or price < 0:
             return simple_error_response('El precio debe ser un número mayor o igual a 0', 400)
@@ -1288,9 +1253,16 @@ def courses_private():
         if not isinstance(points, (int, float)) or points < 0:
             return simple_error_response('Los puntos deben ser un número mayor o igual a 0', 400)
 
-        # Crear la instancia del curso en la DB
+        title_to_create = data.get('title', '').strip()
+        existing_course = db.session.execute(
+            db.select(Courses).where(Courses.title == title_to_create)
+        ).scalar()
+        
+        if existing_course:
+            return simple_error_response(f'Ya existe un curso con el título: {title_to_create}', 409)
+
         row = Courses(
-            title=data.get('title', '').strip(),
+            title=title_to_create,
             description=data.get('description', 'info no disponible').strip(),
             price=price,
             is_active=data.get('is_active', True),
@@ -1300,17 +1272,17 @@ def courses_private():
 
         db.session.add(row)
         db.session.commit()
-
+            
         # HELPER: simple_success_response - Confirmación de éxito
-        return simple_success_response(row.serialize(), 'Curso creado exitosamente'), 201
+        response_data, _ = simple_success_response(row.serialize(), 'Curso creado exitosamente')
+        return response_data, 201
 
-    # HELPER: method_not_allowed_response - Seguridad para otros métodos (PUT, DELETE, etc.)
+    # HELPER: method_not_allowed_response - Seguridad para otros métodos
     return method_not_allowed_response()
 
+
 # GET/PUT/DELETE: Operaciones CRUD para curso específico
-
-
-@api.route('/courses-private/<int:course_id>', methods=['GET', 'PUT', 'DELETE'])
+@api.route('/courses-private/<int:course_id>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @jwt_required()
 def course_private(course_id):
     # HELPER: validate_user_role - Verificar usuario autenticado
@@ -1327,20 +1299,22 @@ def course_private(course_id):
 
     if not row:
         # HELPER: simple_error_response - Curso no encontrado
-        return simple_error_response(f'Curso {course_id} no encontrado', 404)
+        response_data, status_code = simple_error_response(f'Curso {course_id} no encontrado', 404)
+        return response_data, status_code
 
     if request.method == 'GET':
         # HELPER: simple_success_response - Detalles del curso
-        return simple_success_response(row.serialize(), f'Detalles del curso {course_id}')
+        response_data, status_code = simple_success_response(row.serialize(), f'Detalles del curso {course_id}')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not is_admin:
             if user_role != 'teacher':
-                # HELPER: simple_error_response - No es admin ni teacher
-                return simple_error_response('No eres un Administrador ni profesor, no puedes actualizar cursos', 403)
+                response_data, status_code = simple_error_response('No autorizado para actualizar cursos', 403)
+                return response_data, status_code
             if row.created_by != user_id:
-                # HELPER: simple_error_response - No es el creador del curso
-                return simple_error_response('No puedes actualizar cursos de otros profesores', 403)
+                response_data, status_code = simple_error_response('No puedes actualizar cursos de otros profesores', 403)
+                return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
@@ -1350,19 +1324,26 @@ def course_private(course_id):
         if 'price' in data:
             price = data['price']
             if not isinstance(price, (int, float)) or price < 0:
-                # HELPER: simple_error_response - Precio inválido
-                return simple_error_response('El precio debe debe de ser un número mayor o igual a 0', 400)
+                response_data, status_code = simple_error_response('El precio debe ser un número mayor o igual a 0', 400)
+                return response_data, status_code
             row.price = price
 
         if 'points' in data:
             points = data['points']
             if not isinstance(points, (int, float)) or points < 0:
-                # HELPER: simple_error_response - Puntos inválidos
-                return simple_error_response('Los puntos deben ser un número mayor o igual a 0', 400)
+                response_data, status_code = simple_error_response('Los puntos deben ser un número mayor o igual a 0', 400)
+                return response_data, status_code
             row.points = points
 
         if 'title' in data:
-            row.title = data['title'].strip()
+            title_new = data['title'].strip()
+            # Validar que el nuevo título no choque con otro curso existente
+            existing = db.session.execute(db.select(Courses).where(Courses.title == title_new, Courses.course_id != course_id)).scalar()
+            if existing:
+                response_data, status_code = simple_error_response(f'Ya existe otro curso con el título: {title_new}', 409)
+                return response_data, status_code
+            row.title = title_new
+            
         if 'description' in data:
             row.description = data['description'].strip()
         if 'is_active' in data:
@@ -1371,29 +1352,28 @@ def course_private(course_id):
         db.session.commit()
 
         # HELPER: simple_success_response - Curso actualizado
-        return simple_success_response(row.serialize(), f'Curso {course_id} Actualizado')
+        response_data, status_code = simple_success_response(row.serialize(), f'Curso {course_id} Actualizado')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not is_admin:
             if user_role != 'teacher':
-                # HELPER: simple_error_response - No es admin ni teacher
-                return simple_error_response('No eres un administrador o profesor, no puedes eliminar cursos', 403)
+                response_data, status_code = simple_error_response('No autorizado para eliminar cursos', 403)
+                return response_data, status_code
             if row.created_by != user_id:
-                # HELPER: simple_error_response - No es el creador del curso
-                return simple_error_response('No puedes eliminar cursos de otros profesores', 403)
+                response_data, status_code = simple_error_response('No puedes eliminar cursos de otros profesores', 403)
+                return response_data, status_code
 
         db.session.delete(row)
         db.session.commit()
 
         # HELPER: simple_success_response - Curso eliminado
-        return simple_success_response({}, f'Curso {course_id} Eliminado')
+        response_data, status_code = simple_success_response({}, f'Curso {course_id} Eliminado')
+        return response_data, status_code
 
-    # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET: Listar módulos públicos (sin autenticación)
-
-
 @api.route('/modules-public', methods=['GET'])
 def modules_public():
 
@@ -1448,10 +1428,17 @@ def modules_private():
         # HELPER: build_pagination_params - Obtener parámetros de paginación
         page, per_page, offset = build_pagination_params(request)
 
-        total_query = db.session.execute(
-            db.select(db.func.count()).select_from(Modules)).scalar()
+        # Filtrado opcional por course_id si se pasa por query string
+        course_id_filter = request.args.get('course_id', type=int)
+        query = db.select(Modules)
+        
+        if course_id_filter:
+            query = query.where(Modules.course_id == course_id_filter)
 
-        rows = db.session.execute(db.select(Modules).order_by(
+        total_query = db.session.execute(
+            db.select(db.func.count()).select_from(query.subquery())).scalar()
+
+        rows = db.session.execute(query.order_by(
             Modules.module_id).limit(per_page).offset(offset)).scalars()
 
         results = [row.serialize() for row in rows]
@@ -1462,12 +1449,11 @@ def modules_private():
             total_count=total_query,
             page=page,
             per_page=per_page,
-            message='Listado de módulos'
+            message='Listado de módulos filtrados por curso' if course_id_filter else 'Listado de todos los módulos'
         )
 
     if request.method == 'POST':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para crear
             return simple_error_response('No autorizado para crear módulos, no es Administrador ni profesor', 403)
 
         # HELPER: validate_request_json - Validar datos del módulo
@@ -1476,38 +1462,41 @@ def modules_private():
         if error_response:
             return error_response, status
 
-        # Validar course_id
         course_id = data.get('course_id')
 
-        course = db.session.execute(db.select(Courses).where(
-            Courses.course_id == course_id)).scalar()
+        # VALIDACIÓN CRÍTICA: El curso debe existir y pertenecer al profesor (si no es admin)
+        course = db.session.execute(db.select(Courses).where(Courses.course_id == course_id)).scalar()
+        
         if not course:
-            # HELPER: simple_error_response - Curso no encontrado
-            return simple_error_response('Curso no encontrado', 400)
+            return simple_error_response(f'El curso con ID {course_id} no existe', 404)
 
-        # Validar order (debe ser int ≥ 0)
+        if not is_admin and course.created_by != user_id:
+            return simple_error_response('No puedes agregar módulos a un curso que no creaste', 403)
+
         order = data.get('order')
         if not isinstance(order, int) or order < 0:
             return simple_error_response('El orden debe ser un número entero no negativo', 400)
 
-        # Validar points (debe ser numérico ≥ 0)
         points = data.get('points')
         if not isinstance(points, (int, float)) or points < 0:
             return simple_error_response('Los puntos deben ser un número mayor o igual a 0', 400)
 
-        # Validar título no vacío
         title = data.get('title', '').strip()
         if not title:
             return simple_error_response('El título del módulo no puede estar vacío', 400)
 
-        # Verificar unicidad de orden en el curso
+        # Verificar si el orden ya está ocupado DENTRO de ese curso específico
         existing_module = db.session.execute(
-            db.select(Modules).where(Modules.course_id == course_id, Modules.order == order)).scalar()
+            db.select(Modules).where(
+                Modules.course_id == course_id, 
+                Modules.order == order
+            )
+        ).scalar()
 
         if existing_module:
-            return simple_error_response(f'Ya existe un módulo con el orden {order} en este curso', 409)
+            return simple_error_response(f'El curso "{course.title}" ya tiene un módulo en la posición {order}', 409)
 
-        # Crear módulo
+        # Crear el vínculo directo entre el módulo y el curso
         row = Modules(
             title=title,
             order=order,
@@ -1519,15 +1508,13 @@ def modules_private():
         db.session.add(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Módulo creado
-        return simple_success_response(row.serialize(), 'Módulo creado exitosamente'), 201
+        # HELPER: simple_success_response - Respuesta limpia para Flask
+        response_data, _ = simple_success_response(row.serialize(), f'Módulo vinculado exitosamente al curso: {course.title}')
+        return response_data, 201
 
-    # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para módulo específico
-
-
 @api.route('/modules-private/<int:module_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def module_private(module_id):
@@ -1541,25 +1528,27 @@ def module_private(module_id):
         Modules.module_id == module_id)).scalar()
 
     if not row:
-        # HELPER: simple_error_response - Módulo no encontrado
-        return simple_error_response('Módulo no encontrado', 404)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('Módulo no encontrado', 404)
+        return response_data, status_code
 
     if request.method == 'GET':
-        # HELPER: simple_success_response - Detalles del módulo
-        return simple_success_response(row.serialize(), f'Detalles del módulo {module_id}')
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_success_response(row.serialize(), f'Detalles del módulo {module_id}')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not user.get('is_admin'):
             if user.get('role') != 'teacher':
-                # HELPER: simple_error_response - No es admin ni teacher
-                return simple_error_response('Solo el administrador y profesor pueden actualizar módulos', 403)
+                response_data, status_code = simple_error_response('Solo el administrador y profesor pueden actualizar módulos', 403)
+                return response_data, status_code
 
         if user.get('role') == 'teacher' and not user.get('is_admin'):
             course_owner = db.session.execute(db.select(Courses).where(
                 Courses.course_id == row.course_id, Courses.created_by == user.get('user_id'))).scalar()
             if not course_owner:
-                # HELPER: simple_error_response - No es el creador del curso
-                return simple_error_response('No tienes permiso para modificar módulos de este curso', 403)
+                response_data, status_code = simple_error_response('No tienes permiso para modificar módulos de este curso', 403)
+                return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
@@ -1570,8 +1559,8 @@ def module_private(module_id):
             course = db.session.execute(db.select(Courses).where(
                 Courses.course_id == data.get('course_id'))).scalar()
             if not course:
-                # HELPER: simple_error_response - Curso no encontrado
-                return simple_error_response('Curso no encontrado', 400)
+                response_data, status_code = simple_error_response('Curso no encontrado', 400)
+                return response_data, status_code
 
         target_course_id = data.get('course_id', row.course_id)
 
@@ -1581,51 +1570,48 @@ def module_private(module_id):
                                                                               'order'),
                                                                           Modules.module_id != module_id)).scalar()
             if existing_module:
-                # HELPER: simple_error_response - Orden duplicado
-                return simple_error_response(f'Ya existe un módulo con el orden {data.get("order")} en este curso', 409)
+                response_data, status_code = simple_error_response(f'Ya existe un módulo con el orden {data.get("order")} en este curso', 409)
+                return response_data, status_code
 
         if 'points' in data:
             points = data['points']
             if not isinstance(points, (int, float)) or points < 0:
-                # HELPER: simple_error_response - Puntos inválidos
-                return simple_error_response('Los puntos deben ser un número mayor o igual a 0', 400)
+                response_data, status_code = simple_error_response('Los puntos deben ser un número mayor o igual a 0', 400)
+                return response_data, status_code
             row.points = points
 
         if 'title' in data:
-            row.title = data.get('title', row.title)
+            row.title = data.get('title').strip()
         if 'order' in data:
-            row.order = data.get('order', row.order)
+            row.order = data.get('order')
         if 'course_id' in data:
-            row.course_id = data.get('course_id', row.course_id)
+            row.course_id = data.get('course_id')
 
         db.session.commit()
-        # HELPER: simple_success_response - Módulo actualizado
-        return simple_success_response(row.serialize(), f'Módulo {module_id} actualizado')
+        response_data, status_code = simple_success_response(row.serialize(), f'Módulo {module_id} actualizado')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not user.get('is_admin'):
             if user.get('role') != 'teacher':
-                # HELPER: simple_error_response - No es admin ni teacher
-                return simple_error_response('No eres un Admin ni Teacher, no puedes eliminar Modulos', 403)
+                response_data, status_code = simple_error_response('No eres un Admin ni Teacher, no puedes eliminar Modulos', 403)
+                return response_data, status_code
 
         if user.get('role') == 'teacher' and not user.get('is_admin'):
             course_owner = db.session.execute(db.select(Courses)
                                               .where(Courses.course_id == row.course_id, Courses.created_by == user.get('user_id'))).scalar()
             if not course_owner:
-                # HELPER: simple_error_response - No es el creador del curso
-                return simple_error_response('No tienes permiso para eliminar módulos de este curso', 403)
+                response_data, status_code = simple_error_response('No tienes permiso para eliminar módulos de este curso', 403)
+                return response_data, status_code
 
         db.session.delete(row)
         db.session.commit()
-        # HELPER: simple_success_response - Módulo eliminado
-        return simple_success_response({}, f'Módulo {module_id} eliminado')
+        response_data, status_code = simple_success_response({}, f'Módulo {module_id} eliminado')
+        return response_data, status_code
 
-    # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET: Listar lecciones públicas (sin autenticación)
-
-
 @api.route('/lessons-public', methods=['GET'])
 def lessons_public():
 
@@ -1662,12 +1648,9 @@ def lessons_public():
     )
 
 # GET/POST: Operaciones CRUD de lecciones (privado, requiere autenticación)
-
-
 @api.route('/lessons-private', methods=['GET', 'POST'])
 @jwt_required()
 def lessons_private():
-    # HELPER: validate_user_role - Verificar usuario autenticado
     user, response_body_validation, status = validate_user_role()
     if response_body_validation:
         return response_body_validation, status
@@ -1677,60 +1660,71 @@ def lessons_private():
     user_id = user.get('user_id')
 
     if request.method == 'GET':
-        # HELPER: build_pagination_params - Obtener parámetros de paginación
         page, per_page, offset = build_pagination_params(request)
+        query = db.select(Lessons)
 
-        total = db.session.execute(
-            db.select(db.func.count()).select_from(Lessons)
-        ).scalar()
+        if user_role == 'demo':
+            query = query.where(Lessons.order <= 3)
 
-        lessons = db.session.execute(
-            db.select(Lessons)
-            .order_by(Lessons.lesson_id)
-            .limit(per_page)
-            .offset(offset)
-        ).scalars()
+        total = db.session.execute(db.select(db.func.count()).select_from(query.subquery())).scalar()
+        lessons = db.session.execute(query.order_by(Lessons.lesson_id).limit(per_page).offset(offset)).scalars()
 
         results = []
         for lesson in lessons:
             data = lesson.serialize()
-
             multimedia = db.session.execute(
-                db.select(MultimediaResources)
-                .where(MultimediaResources.lesson_id == lesson.lesson_id)
-                .order_by(MultimediaResources.order)
+                db.select(MultimediaResources).where(MultimediaResources.lesson_id == lesson.lesson_id)
             ).scalars()
-
             data["multimedia_resources"] = [m.serialize() for m in multimedia]
             results.append(data)
 
-        # HELPER: build_pagination_response - Enviar respuesta paginada
-        return build_pagination_response(
-            results=results,
-            total_count=total,
-            page=page,
-            per_page=per_page,
-            message="Listado de lecciones"
-        )
+        return build_pagination_response(results, total, page, per_page, "Listado de lecciones")
 
     if request.method == 'POST':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para crear
-            return simple_error_response("No autorizado para crear lecciones", 403)
+            return simple_error_response("No autorizado", 403)
 
-        content_type = request.content_type or ""
+        # Si envían archivos reales (Video/Foto)
+        if "multipart/form-data" in (request.content_type or ""):
+            response_data, status_code = _handle_multipart_upload(request, user_id, user)
+            return response_data, status_code
 
-        if "multipart/form-data" in content_type:
-            return _handle_multipart_upload(request, user_id, user)
+        # Si envían JSON (con o sin URL manual)
+        data, error_response, status = validate_request_json(['title', 'content', 'module_id', 'order'])
+        if error_response:
+            return error_response, status
 
-        return handle_json_create(request, user_id, user)
+        # Crear la lección
+        lesson = Lessons(
+            title=data.get('title').strip(),
+            content=data.get('content').strip(),
+            module_id=data.get('module_id'),
+            order=data.get('order'),
+            trial_visible=data.get('trial_visible', False),
+            learning_objective=data.get('learning_objective', '').strip(),
+            signs_taught=data.get('signs_taught', '').strip()
+        )
+        db.session.add(lesson)
+        db.session.flush() # Para obtener el ID de la lección antes del commit
 
-    # HELPER: method_not_allowed_response - Método no permitido
+        # SI EL JSON TRAE UNA URL, LA GUARDAMOS EN LA TABLA MULTIMEDIA
+        url_manual = data.get('url')
+        if url_manual:
+            new_media = MultimediaResources(
+                lesson_id=lesson.lesson_id,
+                url=url_manual,
+                resource_type=data.get('resource_type', 'video'),
+                order=1
+            )
+            db.session.add(new_media)
+
+        db.session.commit()
+        response_data, _ = simple_success_response(lesson.serialize(), "Lección creada con éxito")
+        return response_data, 201
+
     return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para lección específica
-
-
 @api.route('/lessons-private/<int:lesson_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def lesson_detail(lesson_id):
@@ -1748,8 +1742,9 @@ def lesson_detail(lesson_id):
     ).scalar()
 
     if not lesson:
-        # HELPER: simple_error_response - Lección no encontrada
-        return simple_error_response(f"Lección {lesson_id} no encontrada", 404)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response(f"Lección {lesson_id} no encontrada", 404)
+        return response_data, status_code
 
     if request.method == 'GET':
         lesson_data = lesson.serialize()
@@ -1760,16 +1755,16 @@ def lesson_detail(lesson_id):
             .order_by(MultimediaResources.order)
         ).scalars()
 
-        lesson_data["multimedia_resources"] = [m.serialize()
-                                               for m in multimedia]
+        lesson_data["multimedia_resources"] = [m.serialize() for m in multimedia]
 
-        # HELPER: simple_success_response - Detalles de la lección
-        return simple_success_response(lesson_data, f"Detalles de la lección {lesson_id}")
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_success_response(lesson_data, f"Detalles de la lección {lesson_id}")
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para actualizar
-            return simple_error_response("No autorizado para actualizar lecciones", 403)
+            response_data, status_code = simple_error_response("No autorizado para actualizar lecciones", 403)
+            return response_data, status_code
 
         if user_role == 'teacher' and not is_admin:
             module = db.session.execute(
@@ -1778,18 +1773,19 @@ def lesson_detail(lesson_id):
 
             if module:
                 course = db.session.execute(
-                    db.select(Courses).where(
-                        Courses.course_id == module.course_id)
+                    db.select(Courses).where(Courses.course_id == module.course_id)
                 ).scalar()
 
                 if not course or course.created_by != user_id:
-                    # HELPER: simple_error_response - No es el creador del curso
-                    return simple_error_response("No autorizado para actualizar lecciones de otros profesores", 403)
+                    response_data, status_code = simple_error_response("No autorizado para actualizar lecciones de otros profesores", 403)
+                    return response_data, status_code
 
         content_type = request.content_type or ""
 
         if "multipart/form-data" in content_type:
-            return _handle_multipart_upload(request, user_id, user)
+            # Desempaquetado para evitar TypeError
+            response_data, status_code = _handle_multipart_upload(request, user_id, user)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
@@ -1806,7 +1802,8 @@ def lesson_detail(lesson_id):
             lesson.signs_taught = data['signs_taught'].strip()
         if 'order' in data:
             if not isinstance(data['order'], int) or data['order'] < 0:
-                return simple_error_response('El orden debe ser un número entero no negativo', 400)
+                response_data, status_code = simple_error_response('El orden debe ser un número entero no negativo', 400)
+                return response_data, status_code
             lesson.order = data['order']
         if 'trial_visible' in data:
             lesson.trial_visible = bool(data['trial_visible'])
@@ -1815,13 +1812,14 @@ def lesson_detail(lesson_id):
 
         db.session.commit()
 
-        # HELPER: simple_success_response - Lección actualizada
-        return simple_success_response(lesson.serialize(), f"Lección {lesson_id} actualizada")
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_success_response(lesson.serialize(), f"Lección {lesson_id} actualizada")
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para eliminar
-            return simple_error_response("No autorizado para eliminar lecciones", 403)
+            response_data, status_code = simple_error_response("No autorizado para eliminar lecciones", 403)
+            return response_data, status_code
 
         if user_role == 'teacher' and not is_admin:
             module = db.session.execute(
@@ -1830,26 +1828,23 @@ def lesson_detail(lesson_id):
 
             if module:
                 course = db.session.execute(
-                    db.select(Courses).where(
-                        Courses.course_id == module.course_id)
+                    db.select(Courses).where(Courses.course_id == module.course_id)
                 ).scalar()
 
                 if not course or course.created_by != user_id:
-                    # HELPER: simple_error_response - No es el creador del curso
-                    return simple_error_response("No autorizado para eliminar lecciones de otros profesores", 403)
+                    response_data, status_code = simple_error_response("No autorizado para eliminar lecciones de otros profesores", 403)
+                    return response_data, status_code
 
         db.session.delete(lesson)
         db.session.commit()
 
-        # HELPER: simple_success_response - Lección eliminada
-        return simple_success_response({}, f"Lección {lesson_id} eliminada")
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_success_response({}, f"Lección {lesson_id} eliminada")
+        return response_data, status_code
 
-    # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # POST: Verificar curso para compra (público)
-
-
 @api.route('/purchases-public', methods=['POST'])
 def purchases_public():
     # HELPER: validate_request_json - Validar datos de compra
@@ -1859,8 +1854,9 @@ def purchases_public():
 
     course_id = data.get('course_id')
     if not isinstance(course_id, int) or course_id < 1:
-        # HELPER: simple_error_response - ID inválido
-        return simple_error_response('ID de curso inválido. Debe ser un número positivo.', 400)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('ID de curso inválido. Debe ser un número positivo.', 400)
+        return response_data, status_code
 
     course = db.session.execute(
         db.select(Courses)
@@ -1871,10 +1867,11 @@ def purchases_public():
     ).scalar()
 
     if not course:
-        # HELPER: simple_error_response - Curso no disponible
-        return simple_error_response('Curso no disponible en este momento', 404)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('Curso no disponible en este momento', 404)
+        return response_data, status_code
 
-    stripe_config = stripe_service.get_stripe_config()
+    stripe_config = stripe_helper.get_stripe_config()
 
     payment_info = {
         'requires_payment': course.price > 0,
@@ -1885,7 +1882,7 @@ def purchases_public():
 
     if course.price > 0:
         payment_info.update({
-            'amount_cents': stripe_service.format_amount_for_stripe(course.price),
+            'amount_cents': stripe_helper.format_amount_for_stripe(course.price),
             'stripe_public_key': stripe_config['publishable_key'],
             'instructions': 'Pago seguro con tarjeta de crédito/débito vía Stripe'
         })
@@ -1914,12 +1911,7 @@ def purchases_public():
                 'Obtención de puntos y logros',
                 'Soporte de profesores'
             ]
-        },
-        'next_steps': [
-            '1. Regístrate como usuario nuevo',
-            '2. Inicia sesión con tus credenciales',
-            '3. Procede con la compra del curso'
-        ]
+        }
     }
 
     if course.price == 0:
@@ -1927,17 +1919,16 @@ def purchases_public():
         response_body['results']['special_note'] = 'Este curso es completamente gratuito'
 
     # HELPER: simple_success_response - Info de compra
-    return simple_success_response(response_body['results'], response_body['message'])
+    # Desempaquetado para evitar TypeError
+    response_data, status_code = simple_success_response(response_body['results'], response_body['message'])
+    return response_data, status_code
 
 # GET/POST: Operaciones CRUD de compras (privado, requiere autenticación)
-
-
 @api.route('/purchases-private', methods=['GET', 'POST'])
 @jwt_required()
 def purchases_private():
     # HELPER: validate_user_role - Verificar usuario autenticado (estudiante, teacher o demo)
-    user, response_body_validation, status = validate_user_role(
-        allow_demo=True)
+    user, response_body_validation, status = validate_user_role(allow_demo=True)
     if response_body_validation:
         return response_body_validation, status
 
@@ -1960,8 +1951,7 @@ def purchases_private():
             db.select(db.func.count()).select_from(query.subquery())
         ).scalar()
 
-        rows = db.session.execute(query.limit(
-            per_page).offset(offset)).scalars()
+        rows = db.session.execute(query.limit(per_page).offset(offset)).scalars()
         results = [row.serialize() for row in rows]
 
         # HELPER: build_pagination_response - Enviar respuesta paginada
@@ -1983,7 +1973,8 @@ def purchases_private():
         course = db.session.get(Courses, course_id)
 
         if not course:
-            return simple_error_response(f'El curso {course_id} no existe', 404)
+            response_data, status_code = simple_error_response(f'El curso {course_id} no existe', 404)
+            return response_data, status_code
 
         # REGLA DE NEGOCIO: Validar si el usuario ya tiene este curso
         existing_purchase = db.session.execute(
@@ -1995,7 +1986,8 @@ def purchases_private():
         ).scalar()
 
         if existing_purchase:
-            return simple_error_response('Ya tienes este curso en tu biblioteca o tienes un pago pendiente', 400)
+            response_data, status_code = simple_error_response('Ya tienes este curso en tu biblioteca o tienes un pago pendiente', 400)
+            return response_data, status_code
 
         # REGLA PARA USUARIOS DEMO: Solo pueden elegir 1 curso en total
         if user_role == 'demo':
@@ -2005,10 +1997,12 @@ def purchases_private():
             ).scalar()
 
             if count_demo >= 1:
-                return simple_error_response('Como usuario Demo, ya has seleccionado tu curso de prueba permitido. Actualiza a Premium para más.', 403)
+                response_data, status_code = simple_error_response('Como usuario Demo, ya has seleccionado tu curso de prueba permitido. Actualiza a Premium para más.', 403)
+                return response_data, status_code
 
             # HELPER: handle_free_course - Activar curso gratis para Demo
-            return handle_free_course(course, user_id)
+            response_data, status_code = handle_free_course(course, user_id)
+            return response_data, status_code
 
         # REGLA PARA ESTUDIANTES: Proceso de pago con Stripe
         if user_role == 'student' or is_admin:
@@ -2016,14 +2010,13 @@ def purchases_private():
             user_obj = db.session.get(Users, user_id)
 
             # HELPER: handle_paid_course - Iniciar proceso de Stripe
-            return handle_paid_course(course, user_id, user_obj.email)
+            response_data, status_code = handle_paid_course(course, user_id, user_obj.email)
+            return response_data, status_code
 
-        # HELPER: method_not_allowed_response - Seguridad
-        return method_not_allowed_response()
+    # HELPER: method_not_allowed_response - Seguridad
+    return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para compra específica
-
-
 @api.route('/purchases/<int:purchase_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def purchase_detail(purchase_id):
@@ -2035,297 +2028,110 @@ def purchase_detail(purchase_id):
     user_id = user.get('user_id')
     is_admin = user.get('is_admin', False)
     user_role = user.get('role')
-    user_email = user.get('email', '')
 
     purchase = db.session.execute(
         db.select(Purchases).where(Purchases.purchase_id == purchase_id)
     ).scalar()
 
     if not purchase:
-        # HELPER: simple_error_response - Compra no encontrada
-        return simple_error_response(f'Compra {purchase_id} no encontrada', 404)
+        response_data, status_code = simple_error_response(f'Compra {purchase_id} no encontrada', 404)
+        return response_data, status_code
 
     if request.method == 'GET':
+        # Validación de permisos para ver la compra
         if not is_admin:
             if user_role == 'teacher':
                 if user_id != purchase.user_id:
                     is_teacher_student = db.session.execute(
                         db.select(Purchases)
                         .join(Courses, Purchases.course_id == Courses.course_id)
-                        .where(
-                            Purchases.purchase_id == purchase_id,
-                            Courses.created_by == user_id
-                        )
+                        .where(Purchases.purchase_id == purchase_id, Courses.created_by == user_id)
                     ).scalar()
-
                     if not is_teacher_student:
-                        # HELPER: simple_error_response - Sin permisos para ver
-                        return simple_error_response('No autorizado para ver esta compra', 403)
-            else:
-                if user_id != purchase.user_id:
-                    # HELPER: simple_error_response - Sin permisos para ver
-                    return simple_error_response('No autorizado para ver esta compra', 403)
+                        response_data, status_code = simple_error_response('No autorizado', 403)
+                        return response_data, status_code
+            elif user_id != purchase.user_id:
+                response_data, status_code = simple_error_response('No autorizado', 403)
+                return response_data, status_code
 
+        # Información de Stripe
         stripe_info = None
         if purchase.stripe_payment_intent_id:
             try:
-                _result = stripe_service.retrieve_payment_intent(
-                    purchase.stripe_payment_intent_id
-                )
-
+                stripe_result = stripe_helper.retrieve_payment_intent(purchase.stripe_payment_intent_id)
                 if stripe_result['success']:
-                    payment_intent = stripe_result['payment_intent']
+                    pi = stripe_result['payment_intent']
                     stripe_info = {
-                        'status': payment_intent.status,
-                        'amount': payment_intent.amount / 100,
-                        'currency': payment_intent.currency,
-                        'created': datetime.fromtimestamp(payment_intent.created, timezone.utc).isoformat(),
-                        'payment_method': payment_intent.payment_method_types[0] if payment_intent.payment_method_types else None,
-                        'customer_email': payment_intent.receipt_email,
-                        'last_payment_error': payment_intent.last_payment_error.message if payment_intent.last_payment_error else None
+                        'status': pi.status,
+                        'amount': pi.amount / 100,
+                        'currency': pi.currency,
+                        'payment_method': pi.payment_method_types[0] if pi.payment_method_types else None
                     }
                 else:
-                    stripe_info = {
-                        'error': stripe_result.get('error', 'Error desconocido'),
-                        'available': False
-                    }
+                    stripe_info = {'error': stripe_result.get('error'), 'available': False}
             except Exception as e:
-                stripe_info = {
-                    'error': str(e),
-                    'available': False
-                }
+                stripe_info = {'error': str(e), 'available': False}
 
-        course = db.session.execute(
-            db.select(Courses).where(Courses.course_id == purchase.course_id)
-        ).scalar()
+        # Serialización de datos relacionados
+        course = db.session.get(Courses, purchase.course_id)
+        buyer = db.session.get(Users, purchase.user_id)
 
-        course_info = None
-        if course:
-            course_info = {
-                'id': course.course_id,
-                'title': course.title,
-                'description': course.description,
-                'price': float(course.price) if course.price else 0,
-                'points': course.points,
-                'is_active': course.is_active
-            }
-
-        buyer = db.session.execute(
-            db.select(Users).where(Users.user_id == purchase.user_id)
-        ).scalar()
-
-        buyer_info = None
-        if buyer:
-            buyer_info = {
-                'id': buyer.user_id,
-                'email': buyer.email,
-                'first_name': buyer.first_name,
-                'last_name': buyer.last_name,
-                'role': buyer.role,
-                'current_points': buyer.current_points
-            }
-
-        purchase_data = purchase.serialize()
-
-        # HELPER: simple_success_response - Detalles de la compra
-        return simple_success_response(
-            {
-                'purchase': purchase_data,
-                'stripe_info': stripe_info,
-                'course': course_info,
-                'buyer': buyer_info,
-                'access_info': {
-                    'can_edit': is_admin,
-                    'can_delete': is_admin,
-                    'viewed_by_admin': is_admin,
-                    'viewed_by_owner': user_id == purchase.user_id,
-                    'viewed_by_teacher': user_role == 'teacher' and user_id != purchase.user_id
-                }
-            },
-            f'Detalles de la compra {purchase_id}'
-        )
+        response_data, status_code = simple_success_response({
+            'purchase': purchase.serialize(),
+            'stripe_info': stripe_info,
+            'course': course.serialize() if course else None,
+            'buyer': buyer.serialize() if buyer else None
+        }, f'Detalles de la compra {purchase_id}')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not is_admin:
-            # HELPER: simple_error_response - Solo admin puede modificar
-            return simple_error_response('Solo administradores pueden modificar compras', 403)
+            response_data, status_code = simple_error_response('Solo administradores pueden modificar compras', 403)
+            return response_data, status_code
 
-        # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
-        if error_response:
-            return error_response, status
+        if error_response: return error_response, status
 
-        if not data:
-            # HELPER: simple_error_response - Datos requeridos
-            return simple_error_response('Request body requerido para actualizar', 400)
-
-        immutable_fields = ['purchase_date', 'price', 'total', 'course_id']
-
-        for field in immutable_fields:
+        # Validar campos inmutables
+        for field in ['purchase_date', 'price', 'total', 'course_id']:
             if field in data:
-                # HELPER: simple_error_response - Campo inmutable
-                return simple_error_response(f'El campo {field} no puede ser modificado después de creada la compra', 400)
+                response_data, status_code = simple_error_response(f'El campo {field} no es modificable', 400)
+                return response_data, status_code
 
         if 'status' in data:
-            valid_statuses = ['paid', 'pending', 'cancelled']
-
-            if data.get('status') not in valid_statuses:
-                # HELPER: simple_error_response - Status inválido
-                return simple_error_response(f'Status inválido. Valores permitidos: {", ".join(valid_statuses)}', 400)
-
+            if data['status'] not in ['paid', 'pending', 'cancelled']:
+                response_data, status_code = simple_error_response('Status inválido', 400)
+                return response_data, status_code
+            purchase.status = data['status']
             if data['status'] == 'paid' and not purchase.start_date:
                 purchase.start_date = datetime.now(timezone.utc)
 
-        if 'user_id' in data:
-            new_user_id = data['user_id']
-
-            if not isinstance(new_user_id, int) or new_user_id < 1:
-                # HELPER: simple_error_response - User ID inválido
-                return simple_error_response('user_id debe ser un número entero positivo', 400)
-
-            new_user = db.session.execute(
-                db.select(Users).where(Users.user_id == new_user_id)
-            ).scalar()
-
-            if not new_user:
-                # HELPER: simple_error_response - Usuario no encontrado
-                return simple_error_response('Usuario no encontrado', 400)
-
-            if new_user_id != purchase.user_id:
-                existing_purchase = db.session.execute(
-                    db.select(Purchases).where(
-                        Purchases.user_id == new_user_id,
-                        Purchases.course_id == purchase.course_id,
-                        Purchases.status == 'paid'
-                    )
-                ).scalar()
-
-                if existing_purchase:
-                    # HELPER: simple_error_response - Ya tiene el curso
-                    return simple_error_response('El nuevo usuario ya tiene este curso comprado', 400)
-
-            purchase.user_id = new_user_id
-
-        if 'status' in data:
-            purchase.status = data['status']
-
         if 'start_date' in data and data['start_date']:
             try:
-                start_date_str = data['start_date'].replace('Z', '+00:00')
-                start_date = datetime.fromisoformat(start_date_str)
+                purchase.start_date = datetime.fromisoformat(data['start_date'].replace('Z', '+00:00'))
+            except:
+                response_data, status_code = simple_error_response('Fecha inválida', 400)
+                return response_data, status_code
 
-                if start_date > datetime.now(timezone.utc):
-                    # HELPER: simple_error_response - Fecha futura
-                    return simple_error_response('start_date no puede ser una fecha futura', 400)
-
-                purchase.start_date = start_date
-            except (ValueError, AttributeError):
-                # HELPER: simple_error_response - Formato de fecha inválido
-                return simple_error_response('Formato de fecha inválido para start_date. Use formato ISO (ej: 2024-01-15T10:30:00Z)', 400)
-
-        if 'stripe_payment_intent_id' in data:
-            purchase.stripe_payment_intent_id = data['stripe_payment_intent_id']
-
-        try:
-            db.session.commit()
-
-            if purchase.status == 'paid' and 'status' in data:
-                course = db.session.execute(
-                    db.select(Courses).where(
-                        Courses.course_id == purchase.course_id)
-                ).scalar()
-
-                if course and course.points > 0:
-                    existing_points = db.session.execute(
-                        db.select(UserPoints).where(
-                            UserPoints.user_id == purchase.user_id,
-                            UserPoints.event_description.contains(
-                                f"purchase_id:{purchase_id}")
-                        )
-                    ).scalar()
-
-                    if not existing_points:
-                        user_point = UserPoints(
-                            user_id=purchase.user_id,
-                            points=course.points,
-                            point_type='course',
-                            event_description=f"Compra #{purchase_id} del curso: {course.title} | purchase_id:{purchase_id}",
-                            date=datetime.now(timezone.utc)
-                        )
-                        db.session.add(user_point)
-
-                        buyer = db.session.get(Users, purchase.user_id)
-                        if buyer:
-                            current = buyer.current_points or 0
-                            buyer.current_points = current + course.points
-
-                        db.session.commit()
-
-            purchase_data = purchase.serialize()
-
-            # HELPER: simple_success_response - Compra actualizada
-            return simple_success_response(
-                purchase_data,
-                f'Compra {purchase_id} actualizada exitosamente'
-            )
-
-        except Exception as e:
-            db.session.rollback()
-            # HELPER: simple_error_response - Error al actualizar
-            return simple_error_response(f'Error al actualizar la compra: {str(e)}', 500)
+        db.session.commit()
+        response_data, status_code = simple_success_response(purchase.serialize(), 'Compra actualizada')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not is_admin:
-            # HELPER: simple_error_response - Solo admin puede eliminar
-            return simple_error_response('Solo administradores pueden eliminar compras', 403)
+            response_data, status_code = simple_error_response('Solo administradores pueden eliminar compras', 403)
+            return response_data, status_code
+        db.session.delete(purchase)
+        db.session.commit()
+        response_data, status_code = simple_success_response({}, 'Compra eliminada')
+        return response_data, status_code
 
-        if purchase.status == 'paid' and purchase.purchase_date:
-            time_diff = datetime.now(timezone.utc) - purchase.purchase_date
-            if time_diff.total_seconds() < 86400:
-                # HELPER: simple_error_response - No se puede eliminar compra reciente
-                return simple_error_response('No se pueden eliminar compras pagadas hace menos de 24 horas', 400)
-
-        if purchase.stripe_payment_intent_id and purchase.status == 'pending':
-            try:
-                stripe_result = stripe_service.retrieve_payment_intent(
-                    purchase.stripe_payment_intent_id)
-            except Exception as e:
-                pass
-
-        try:
-            deleted_info = {
-                'purchase_id': purchase_id,
-                'course_id': purchase.course_id,
-                'user_id': purchase.user_id,
-                'status': purchase.status,
-                'amount': float(purchase.total) if purchase.total else 0
-            }
-
-            db.session.delete(purchase)
-            db.session.commit()
-
-            # HELPER: simple_success_response - Compra eliminada
-            return simple_success_response(
-                {
-                    'deleted': True,
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
-                    **deleted_info
-                },
-                f'Compra {purchase_id} eliminada exitosamente'
-            )
-
-        except Exception as e:
-            db.session.rollback()
-            # HELPER: simple_error_response - Error al eliminar
-            return simple_error_response(f'Error al eliminar la compra: {str(e)}', 500)
-
-    # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
-
 
 @api.route('/points-ranking', methods=['GET'])
 @jwt_required()
 def points_ranking():
+    # HELPER: validate_user_role - Verificar usuario autenticado
     user, error_response, status = validate_user_role()
     if error_response:
         return error_response, status
@@ -2334,35 +2140,47 @@ def points_ranking():
     is_admin = user.get('is_admin', False)
     user_role = user.get('role')
 
+    # HELPER: build_pagination_params - Obtener parámetros de paginación
     page, per_page, offset = build_pagination_params(request)
 
     if is_admin:
         query = db.select(Users).where(Users.is_active == True)
-        total = db.session.execute(db.select(db.func.count()).select_from(
-            Users).where(Users.is_active == True)).scalar() or 0
-        users = db.session.execute(query.order_by(
-            Users.current_points.desc()).limit(per_page).offset(offset)).scalars()
+        
+        total = db.session.execute(
+            db.select(db.func.count())
+            .select_from(Users)
+            .where(Users.is_active == True)
+        ).scalar() or 0
+        
+        users = db.session.execute(
+            query.order_by(Users.current_points.desc())
+            .limit(per_page)
+            .offset(offset)
+        ).scalars()
 
         results = []
-        for rank, user_obj in enumerate(users, 1):
+        for index, user_obj in enumerate(users, 1):
             results.append({
-                'rank': rank,
+                'rank': offset + index,
                 'user_id': user_obj.user_id,
                 'name': f"{user_obj.first_name} {user_obj.last_name}",
                 'points': user_obj.current_points or 0
             })
 
+        # HELPER: build_pagination_response - Enviar respuesta paginada
         return build_pagination_response(results, total, page, per_page, 'Ranking general')
 
     elif user_role == 'teacher':
-        query = db.select(Users).distinct() \
-            .join(Purchases, Users.user_id == Purchases.user_id) \
-            .join(Courses, Purchases.course_id == Courses.course_id) \
-            .where(
-                Courses.created_by == user_id,
-                Users.role == 'student',
-                Users.is_active == True,
-                Purchases.status == 'paid'
+        # Consulta para que el profesor vea el ranking de sus propios alumnos
+        query = db.select(Users).distinct().join(
+            Purchases, Users.user_id == Purchases.user_id
+        ).join(
+            Courses, Purchases.course_id == Courses.course_id
+        ).where(
+            Courses.created_by == user_id,
+            Users.role.in_(['student', 'demo']),
+            Users.is_active == True,
+            Purchases.status == 'paid'
         )
 
         total = db.session.execute(
@@ -2372,37 +2190,42 @@ def points_ranking():
             .join(Courses, Purchases.course_id == Courses.course_id)
             .where(
                 Courses.created_by == user_id,
-                Users.role == 'student',
+                Users.role.in_(['student', 'demo']),
                 Users.is_active == True,
                 Purchases.status == 'paid'
             )
         ).scalar() or 0
 
-        students = db.session.execute(query.order_by(
-            Users.current_points.desc()).limit(per_page).offset(offset)).scalars()
+        students = db.session.execute(
+            query.order_by(Users.current_points.desc())
+            .limit(per_page)
+            .offset(offset)
+        ).scalars()
 
         results = []
-        for rank, student in enumerate(students, 1):
+        for index, student in enumerate(students, 1):
             results.append({
-                'rank': rank,
+                'rank': offset + index,
                 'student_id': student.user_id,
                 'name': f"{student.first_name} {student.last_name}",
                 'points': student.current_points or 0
             })
 
-        return build_pagination_response(results, total, page, per_page, 'Tus estudiantes')
+        # HELPER: build_pagination_response - Enviar respuesta paginada
+        return build_pagination_response(results, total, page, per_page, 'Ranking de tus estudiantes')
 
     else:
-        user_obj = db.session.execute(
-            db.select(Users).where(Users.user_id == user_id)).scalar()
-        return simple_success_response(
+        # Los alumnos o demos solo ven sus propios puntos
+        user_obj = db.session.get(Users, user_id)
+        
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_success_response(
             {'points': user_obj.current_points if user_obj else 0},
-            'Tus puntos'
+            'Tus puntos actuales'
         )
+        return response_data, status_code
 
 # GET/POST: Operaciones CRUD de puntos de usuario
-
-
 @api.route('/user-points', methods=['GET', 'POST'])
 @jwt_required()
 def user_points():
@@ -2416,65 +2239,71 @@ def user_points():
     user_role = user.get('role')
 
     if request.method == 'GET':
+        # Consulta para agrupar puntos por usuario y ordenar por el que más tiene (Ranking)
         points_query = db.session.execute(db.select(UserPoints.user_id,
                                           func.sum(UserPoints.points).label('total_points'))
                                           .group_by(UserPoints.user_id)
                                           .order_by(func.sum(UserPoints.points).desc())).all()
 
-        user_ids = [user_id for user_id, _ in points_query]
+        user_ids = [uid for uid, _ in points_query]
         users = db.session.execute(db.select(Users)
                                    .where(Users.user_id.in_(user_ids))).scalars()
 
-        serialized_users = {user.user_id: user.serialize() for user in users}
+        serialized_users = {u.user_id: u.serialize() for u in users}
 
         results = []
-        for rank, (user_id, total_points) in enumerate(points_query, 1):
-            user_data = serialized_users.get(user_id, {})
+        for rank, (uid, total_points) in enumerate(points_query, 1):
+            user_data = serialized_users.get(uid, {})
             user_data['rank'] = rank
-            user_data['total_points'] = float(
-                total_points) if total_points else 0
+            user_data['total_points'] = float(total_points) if total_points else 0
             results.append(user_data)
 
-        # HELPER: simple_success_response - Lista de puntos
-        return simple_success_response(results, 'User points list')
+        # DESEMPAQUETADO: Evitamos el TypeError de Flask
+        response_data, status_code = simple_success_response(results, 'User points list')
+        return response_data, status_code
 
     if request.method == 'POST':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para crear
-            return simple_error_response('No autorizado para crear puntos de usuario, no es admin ni teacher', 403)
+            # DESEMPAQUETADO: Evitamos el TypeError de Flask enviando 403
+            response_data, status_code = simple_error_response('No autorizado para crear puntos de usuario', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de puntos
-        data, error_response, status = validate_request_json(
-            ['user_id', 'points'])
+        data, error_response, status = validate_request_json(['user_id', 'points'])
         if error_response:
             return error_response, status
 
-        user_exists = db.session.execute(
-            db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
+        # Buscamos al usuario para ver si existe y para actualizar sus puntos
+        target_user = db.session.get(Users, data.get('user_id'))
 
-        if not user_exists:
-            # HELPER: simple_error_response - Usuario no encontrado
-            return simple_error_response('Usuario no encontrado', 400)
+        if not target_user:
+            # DESEMPAQUETADO: Evitamos el TypeError de Flask enviando 400
+            response_data, status_code = simple_error_response('Usuario no encontrado', 400)
+            return response_data, status_code
 
+        # Creamos el registro del historial de puntos
         row = UserPoints(
             user_id=data.get('user_id'),
             points=data.get('points'),
             point_type=data.get('point_type', 'course'),
             event_description=data.get('event_description'),
-            date=data.get('date')
+            date=datetime.now(timezone.utc) # Aseguramos fecha actual
         )
+        
+        # ACTUALIZACIÓN EN CASCADA: Sumamos los puntos al perfil del usuario
+        target_user.current_points = (target_user.current_points or 0) + int(data.get('points'))
+        
         db.session.add(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Puntos creados
-        return simple_success_response(row.serialize(), 'Puntos de usuario creados'), 201
+        # DESEMPAQUETADO: Enviamos el JSON y forzamos el código 201
+        response_data, _ = simple_success_response(row.serialize(), 'Puntos de usuario creados y saldo actualizado')
+        return response_data, 201
 
     # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para punto específico
-
-
 @api.route('/user-points/<int:point_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def user_point(point_id):
@@ -2488,16 +2317,19 @@ def user_point(point_id):
 
     if not row:
         # HELPER: simple_error_response - Punto no encontrado
-        return simple_error_response('Registro de puntos no encontrado', 404)
+        response_data, status_code = simple_error_response('Registro de puntos no encontrado', 404)
+        return response_data, status_code
 
     if request.method == 'GET':
         # HELPER: simple_success_response - Detalles del punto
-        return simple_success_response(row.serialize(), f'Detalles del punto {point_id}')
+        response_data, status_code = simple_success_response(row.serialize(), f'Detalles del punto {point_id}')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not user.get('is_admin') and user.get('role') != 'teacher':
             # HELPER: simple_error_response - Sin permisos para actualizar
-            return simple_error_response('No eres un Admin ni Teacher, no puedes actualizar puntos', 403)
+            response_data, status_code = simple_error_response('No eres un Admin ni Teacher, no puedes actualizar puntos', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
@@ -2506,7 +2338,8 @@ def user_point(point_id):
 
         if not data:
             # HELPER: simple_error_response - Datos requeridos
-            return simple_error_response('Request body requerido para actualizar', 400)
+            response_data, status_code = simple_error_response('Request body requerido para actualizar', 400)
+            return response_data, status_code
 
         if 'user_id' in data:
             user_exists = db.session.execute(
@@ -2514,36 +2347,51 @@ def user_point(point_id):
             ).scalar()
             if not user_exists:
                 # HELPER: simple_error_response - Usuario no encontrado
-                return simple_error_response('Usuario no encontrado', 400)
+                response_data, status_code = simple_error_response('Usuario no encontrado', 400)
+                return response_data, status_code
 
-        row.points = data.get('points', row.points)
+        # Si cambian los puntos, debemos ajustar el current_points del usuario
+        if 'points' in data:
+            target_user = db.session.get(Users, row.user_id)
+            if target_user:
+                # Restamos el valor viejo y sumamos el nuevo
+                diff = int(data['points']) - row.points
+                target_user.current_points = (target_user.current_points or 0) + diff
+            row.points = data['points']
+
         row.point_type = data.get('point_type', row.point_type)
-        row.event_description = data.get(
-            'event_description', row.event_description)
+        row.event_description = data.get('event_description', row.event_description)
         row.date = data.get('date', row.date)
         row.user_id = data.get('user_id', row.user_id)
+        
         db.session.commit()
 
         # HELPER: simple_success_response - Punto actualizado
-        return simple_success_response(row.serialize(), f'Punto {point_id} actualizado')
+        response_data, status_code = simple_success_response(row.serialize(), f'Punto {point_id} actualizado')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not user.get('is_admin') and user.get('role') != 'teacher':
             # HELPER: simple_error_response - Sin permisos para eliminar
-            return simple_error_response('No eres un Admin ni Teacher, no puedes eliminar puntos', 403)
+            response_data, status_code = simple_error_response('No eres un Admin ni Teacher, no puedes eliminar puntos', 403)
+            return response_data, status_code
+
+        # Al eliminar el registro, restamos esos puntos del total del usuario
+        target_user = db.session.get(Users, row.user_id)
+        if target_user:
+            target_user.current_points = (target_user.current_points or 0) - row.points
 
         db.session.delete(row)
         db.session.commit()
 
         # HELPER: simple_success_response - Punto eliminado
-        return simple_success_response({}, f'Punto {point_id} eliminado')
+        response_data, status_code = simple_success_response({}, f'Punto {point_id} eliminado')
+        return response_data, status_code
 
     # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/POST: Operaciones CRUD de progreso de usuario
-
-
 @api.route('/userprogress', methods=['GET', 'POST'])
 @jwt_required()
 def user_progress():
@@ -2565,13 +2413,15 @@ def user_progress():
         rows = db.session.execute(query).scalars()
         results = [row.serialize() for row in rows]
 
-        # HELPER: simple_success_response - Lista de progreso
-        return simple_success_response(results, 'Listado de progreso de usuarios')
+        # Desempaquetado para evitar el error de tupla anidada (TypeError)
+        response_data, status_code = simple_success_response(results, 'Listado de progreso de usuarios')
+        return response_data, status_code
 
     if request.method == 'POST':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para crear
-            return simple_error_response('No autorizado para crear registros de progreso', 403)
+            # Desempaquetado para evitar el error de tupla anidada (TypeError)
+            response_data, status_code = simple_error_response('No autorizado para crear registros de progreso', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de progreso
         data, error_response, status = validate_request_json([
@@ -2580,27 +2430,37 @@ def user_progress():
         if error_response:
             return error_response, status
 
+        # Validar si ya existe el registro para evitar duplicados si la lógica lo requiere
+        existing_progress = db.session.execute(
+            db.select(UserProgress).where(
+                UserProgress.user_id == data.get('user_id'),
+                UserProgress.lesson_id == data.get('lesson_id')
+            )
+        ).scalar()
+
+        if existing_progress:
+            response_data, status_code = simple_error_response('El registro de progreso para esta lección ya existe', 409)
+            return response_data, status_code
+
         row = UserProgress(
             user_id=data.get('user_id'),
             lesson_id=data.get('lesson_id'),
             completed=data.get('completed', False),
-            start_date=data.get('start_date'),
-            completion_date=data.get('completion_date') if data.get(
-                'completed') else None
+            start_date=data.get('start_date') if data.get('start_date') else datetime.now(timezone.utc),
+            completion_date=datetime.now(timezone.utc) if data.get('completed') else None
         )
 
         db.session.add(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Progreso creado
-        return simple_success_response(row.serialize(), 'Progreso de usuario creado'), 201
+        # Desempaquetado para devolver el JSON y forzar el código 201
+        response_data, _ = simple_success_response(row.serialize(), 'Progreso de usuario creado')
+        return response_data, 201
 
     # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para progreso específico
-
-
 @api.route('/userprogress/<int:progress_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def user_progress_detail(progress_id):
@@ -2618,21 +2478,24 @@ def user_progress_detail(progress_id):
     ).scalar()
 
     if not row:
-        # HELPER: simple_error_response - Progreso no encontrado
-        return simple_error_response(f'Progreso {progress_id} no encontrado', 404)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response(f'Progreso {progress_id} no encontrado', 404)
+        return response_data, status_code
 
     if not is_admin and user_role != 'teacher' and row.user_id != user_id:
-        # HELPER: simple_error_response - Sin permisos para acceder
-        return simple_error_response('No autorizado para acceder a este progreso', 403)
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_error_response('No autorizado para acceder a este progreso', 403)
+        return response_data, status_code
 
     if request.method == 'GET':
-        # HELPER: simple_success_response - Detalles del progreso
-        return simple_success_response(row.serialize(), f'Detalles del progreso {progress_id}')
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_success_response(row.serialize(), f'Detalles del progreso {progress_id}')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para actualizar
-            return simple_error_response('No autorizado para actualizar progreso', 403)
+            response_data, status_code = simple_error_response('No autorizado para actualizar progreso', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
@@ -2648,34 +2511,32 @@ def user_progress_detail(progress_id):
 
         if 'start_date' in data and data['start_date']:
             try:
-                row.start_date = datetime.fromisoformat(
-                    data['start_date'].replace('Z', '+00:00'))
+                row.start_date = datetime.fromisoformat(data['start_date'].replace('Z', '+00:00'))
             except ValueError:
-                # HELPER: simple_error_response - Formato de fecha inválido
-                return simple_error_response('Formato de fecha inválido para start_date', 400)
+                response_data, status_code = simple_error_response('Formato de fecha inválido para start_date', 400)
+                return response_data, status_code
 
         db.session.commit()
 
-        # HELPER: simple_success_response - Progreso actualizado
-        return simple_success_response(row.serialize(), f'Progreso {progress_id} actualizado')
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_success_response(row.serialize(), f'Progreso {progress_id} actualizado')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not is_admin:
-            # HELPER: simple_error_response - Solo admin puede eliminar
-            return simple_error_response('Solo administradores pueden eliminar progreso', 403)
+            response_data, status_code = simple_error_response('Solo administradores pueden eliminar progreso', 403)
+            return response_data, status_code
 
         db.session.delete(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Progreso eliminado
-        return simple_success_response({}, f'Progreso {progress_id} eliminado')
+        # Desempaquetado para evitar TypeError
+        response_data, status_code = simple_success_response({}, f'Progreso {progress_id} eliminado')
+        return response_data, status_code
 
-    # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/POST: Operaciones CRUD de logros
-
-
 @api.route('/achievements', methods=['GET', 'POST'])
 @jwt_required()
 def achievements():
@@ -2687,17 +2548,18 @@ def achievements():
     is_admin = user.get('is_admin', False)
 
     if request.method == 'GET':
-        rows = db.session.execute(
-            db.select(Achievements)).scalars()
+        rows = db.session.execute(db.select(Achievements)).scalars()
         results = [row.serialize() for row in rows]
 
-        # HELPER: simple_success_response - Lista de logros
-        return simple_success_response(results, 'Listado de logros')
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_success_response(results, 'Listado de logros')
+        return response_data, status_code
 
     if request.method == 'POST':
         if not is_admin:
-            # HELPER: simple_error_response - Solo admin puede crear
-            return simple_error_response('Solo administradores pueden crear logros', 403)
+            # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+            response_data, status_code = simple_error_response('Solo administradores pueden crear logros', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos del logro
         data, error_response, status = validate_request_json([
@@ -2715,15 +2577,14 @@ def achievements():
         db.session.add(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Logro creado
-        return simple_success_response(row.serialize(), 'Logro creado'), 201
+        # DESEMPAQUETADO: Evitar TypeError y devolver código 201
+        response_data, _ = simple_success_response(row.serialize(), 'Logro creado')
+        return response_data, 201
 
     # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para logro específico
-
-
 @api.route('/achievements/<int:achievement_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def achievement(achievement_id):
@@ -2738,17 +2599,20 @@ def achievement(achievement_id):
         db.select(Achievements).where(Achievements.achievement_id == achievement_id)).scalar()
 
     if not row:
-        # HELPER: simple_error_response - Logro no encontrado
-        return simple_error_response('Logro no encontrado', 404)
+        # DESEMPAQUETADO: Evitar TypeError
+        response_data, status_code = simple_error_response('Logro no encontrado', 404)
+        return response_data, status_code
 
     if request.method == 'GET':
-        # HELPER: simple_success_response - Detalles del logro
-        return simple_success_response(row.serialize(), f'Detalles del logro {achievement_id}')
+        # DESEMPAQUETADO: Evitar TypeError
+        response_data, status_code = simple_success_response(row.serialize(), f'Detalles del logro {achievement_id}')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not is_admin:
-            # HELPER: simple_error_response - Solo admin puede actualizar
-            return simple_error_response('Solo administradores pueden actualizar logros', 403)
+            # DESEMPAQUETADO: Evitar TypeError
+            response_data, status_code = simple_error_response('Solo administradores pueden actualizar logros', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
@@ -2762,26 +2626,27 @@ def achievement(achievement_id):
 
         db.session.commit()
 
-        # HELPER: simple_success_response - Logro actualizado
-        return simple_success_response(row.serialize(), f'Logro {achievement_id} actualizado')
+        # DESEMPAQUETADO: Evitar TypeError
+        response_data, status_code = simple_success_response(row.serialize(), f'Logro {achievement_id} actualizado')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not is_admin:
-            # HELPER: simple_error_response - Solo admin puede eliminar
-            return simple_error_response('Solo administradores pueden eliminar logros', 403)
+            # DESEMPAQUETADO: Evitar TypeError
+            response_data, status_code = simple_error_response('Solo administradores pueden eliminar logros', 403)
+            return response_data, status_code
 
         db.session.delete(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Logro eliminado
-        return simple_success_response({}, f'Logro {achievement_id} eliminado')
+        # DESEMPAQUETADO: Evitar TypeError
+        response_data, status_code = simple_success_response({}, f'Logro {achievement_id} eliminado')
+        return response_data, status_code
 
     # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/POST: Operaciones CRUD de logros de usuario
-
-
 @api.route('/user-achievements', methods=['GET', 'POST'])
 @jwt_required()
 def user_achievements():
@@ -2792,14 +2657,14 @@ def user_achievements():
 
     is_admin = user.get('is_admin', False)
     user_role = user.get('role')
+    user_id_token = user.get('user_id')
 
     if request.method == 'GET':
-
-        # Alumno solo puede ver sus propios logros
-        if user.get('role') == 'alumno':
+        # El alumno o demo solo puede ver sus propios logros
+        if user_role in ['student', 'demo']:
             rows = db.session.execute(
                 db.select(UserAchievements).where(
-                    UserAchievements.user_id == user.get('id'))).scalars().all()
+                    UserAchievements.user_id == user_id_token)).scalars().all()
         else:
             # Admin y Teacher ven todos
             rows = db.session.execute(
@@ -2807,14 +2672,15 @@ def user_achievements():
 
         results = [row.serialize() for row in rows]
 
-        # HELPER: simple_success_response - Lista de logros de usuario
-        return simple_success_response(results, 'Listado de logros obtenidos por usuarios')
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_success_response(results, 'Listado de logros obtenidos por usuarios')
+        return response_data, status_code
 
-    # POST
     if request.method == 'POST':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para asignar
-            return simple_error_response('No autorizado para asignar logros', 403)
+            # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+            response_data, status_code = simple_error_response('No autorizado para asignar logros', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de logro de usuario
         data, error_response, status = validate_request_json([
@@ -2823,33 +2689,29 @@ def user_achievements():
         if error_response:
             return error_response, status
 
-        required_fields = ['user_id', 'achievement_id']
-        missing_fields = [
-            field for field in required_fields if field not in data]
-        if missing_fields:
-            # HELPER: simple_error_response - Campos faltantes
-            return simple_error_response('Faltan campos requeridos', 400)
+        target_user_id = data.get('user_id')
+        achievement_id = data.get('achievement_id')
 
         user_exists = db.session.execute(
-            db.select(Users).where(Users.user_id == data.get('user_id'))).scalar()
+            db.select(Users).where(Users.user_id == target_user_id)).scalar()
         if not user_exists:
-            # HELPER: simple_error_response - Usuario no encontrado
-            return simple_error_response('Usuario no encontrado', 400)
+            response_data, status_code = simple_error_response('Usuario no encontrado', 400)
+            return response_data, status_code
 
         achievement_exists = db.session.execute(
             db.select(Achievements).where(
-                Achievements.achievement_id == data.get('achievement_id'))).scalar()
+                Achievements.achievement_id == achievement_id)).scalar()
         if not achievement_exists:
-            # HELPER: simple_error_response - Logro no encontrado
-            return simple_error_response('Logro no encontrado', 400)
+            response_data, status_code = simple_error_response('Logro no encontrado', 400)
+            return response_data, status_code
 
         existing = db.session.execute(
             db.select(UserAchievements).where(
-                UserAchievements.user_id == data.get('user_id'),
-                UserAchievements.achievement_id == data.get('achievement_id'))).scalar()
+                UserAchievements.user_id == target_user_id,
+                UserAchievements.achievement_id == achievement_id)).scalar()
         if existing:
-            # HELPER: simple_error_response - Ya tiene el logro
-            return simple_error_response('El usuario ya tiene este logro', 409)
+            response_data, status_code = simple_error_response('El usuario ya tiene este logro', 409)
+            return response_data, status_code
 
         obtained_date = datetime.now(timezone.utc)
         obtained_date_str = data.get('obtained_date')
@@ -2858,25 +2720,24 @@ def user_achievements():
                 obtained_date = datetime.fromisoformat(
                     obtained_date_str.replace('Z', '+00:00'))
             except ValueError:
-                return simple_error_response('Formato de fecha inválido', 400)
+                response_data, status_code = simple_error_response('Formato de fecha inválido', 400)
+                return response_data, status_code
 
         row = UserAchievements(
-            user_id=data.get('user_id'),
-            achievement_id=data.get('achievement_id'),
+            user_id=target_user_id,
+            achievement_id=achievement_id,
             obtained_date=obtained_date)
 
         db.session.add(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Logro asignado
-        return simple_success_response(row.serialize(), 'Logro asignado al usuario'), 201
+        # DESEMPAQUETADO: Evitar TypeError y devolver código 201
+        response_data, _ = simple_success_response(row.serialize(), 'Logro asignado al usuario')
+        return response_data, 201
 
-    # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para logro de usuario específico
-
-
 @api.route('/user-achievements/<int:user_achievement_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def user_achievement(user_achievement_id):
@@ -2895,20 +2756,24 @@ def user_achievement(user_achievement_id):
 
     if not row:
         # HELPER: simple_error_response - Logro de usuario no encontrado
-        return simple_error_response('Logro de usuario no encontrado', 404)
+        response_data, status_code = simple_error_response('Logro de usuario no encontrado', 404)
+        return response_data, status_code
 
     if request.method == 'GET':
         if not is_admin and user_role != 'teacher' and row.user_id != current_user_id:
             # HELPER: simple_error_response - Sin permisos para ver
-            return simple_error_response('No autorizado para ver este logro', 403)
+            response_data, status_code = simple_error_response('No autorizado para ver este logro', 403)
+            return response_data, status_code
 
         # HELPER: simple_success_response - Detalles del logro de usuario
-        return simple_success_response(row.serialize(), f'Detalles del logro de usuario {user_achievement_id}')
+        response_data, status_code = simple_success_response(row.serialize(), f'Detalles del logro de usuario {user_achievement_id}')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not is_admin and user_role != 'teacher':
             # HELPER: simple_error_response - Sin permisos para actualizar
-            return simple_error_response('No autorizado para actualizar logros', 403)
+            response_data, status_code = simple_error_response('No autorizado para actualizar logros', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
@@ -2921,30 +2786,32 @@ def user_achievement(user_achievement_id):
                     data['obtained_date'].replace('Z', '+00:00'))
             except ValueError:
                 # HELPER: simple_error_response - Formato de fecha inválido
-                return simple_error_response('Formato de fecha inválido', 400)
+                response_data, status_code = simple_error_response('Formato de fecha inválido', 400)
+                return response_data, status_code
 
         db.session.commit()
 
         # HELPER: simple_success_response - Logro de usuario actualizado
-        return simple_success_response(row.serialize(), f'Logro de usuario {user_achievement_id} actualizado')
+        response_data, status_code = simple_success_response(row.serialize(), f'Logro de usuario {user_achievement_id} actualizado')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not is_admin:
             # HELPER: simple_error_response - Solo admin puede eliminar
-            return simple_error_response('Solo administradores pueden eliminar logros', 403)
+            response_data, status_code = simple_error_response('Solo administradores pueden eliminar logros', 403)
+            return response_data, status_code
 
         db.session.delete(row)
         db.session.commit()
 
         # HELPER: simple_success_response - Logro de usuario eliminado
-        return simple_success_response({}, f'Logro de usuario {user_achievement_id} eliminado')
+        response_data, status_code = simple_success_response({}, f'Logro de usuario {user_achievement_id} eliminado')
+        return response_data, status_code
 
     # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/POST: Operaciones CRUD de recursos multimedia
-
-
 @api.route('/multimedia-resources', methods=['GET', 'POST'])
 @jwt_required()
 def multimedia_resources():
@@ -2960,13 +2827,15 @@ def multimedia_resources():
         rows = db.session.execute(db.select(MultimediaResources)).scalars()
         results = [row.serialize() for row in rows]
 
-        # HELPER: simple_success_response - Lista de recursos multimedia
-        return simple_success_response(results, 'Listado de recursos multimedia')
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_success_response(results, 'Listado de recursos multimedia')
+        return response_data, status_code
 
     if request.method == 'POST':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para crear
-            return simple_error_response('No autorizado para crear recursos multimedia', 403)
+            # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+            response_data, status_code = simple_error_response('No autorizado para crear recursos multimedia', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos del recurso
         data, error_response, status = validate_request_json([
@@ -2975,38 +2844,28 @@ def multimedia_resources():
         if error_response:
             return error_response, status
 
-        if not data:
-            # HELPER: simple_error_response - Datos requeridos
-            return simple_error_response('Request body requerido', 400)
-
-        required_fields = ['type', 'url', 'order', 'lesson_id']
-        missing_fields = [f for f in required_fields if f not in data]
-        if missing_fields:
-            # HELPER: simple_error_response - Campos faltantes
-            return simple_error_response('Faltan campos requeridos', 400)
-
         allowed_types = ['video', 'image', 'gif', 'animation', 'document']
         if data.get('type') not in allowed_types:
-            # HELPER: simple_error_response - Tipo inválido
-            return simple_error_response('Tipo de recurso inválido', 400)
+            response_data, status_code = simple_error_response('Tipo de recurso inválido', 400)
+            return response_data, status_code
 
         if not data.get('url').startswith(('http://', 'https://')):
-            # HELPER: simple_error_response - URL inválida
-            return simple_error_response('URL inválida', 400)
+            response_data, status_code = simple_error_response('URL inválida', 400)
+            return response_data, status_code
 
         lesson = db.session.execute(
             db.select(Lessons).where(Lessons.lesson_id == data.get('lesson_id'))).scalar()
         if not lesson:
-            # HELPER: simple_error_response - Lección no encontrada
-            return simple_error_response('Lección no encontrada', 400)
+            response_data, status_code = simple_error_response('Lección no encontrada', 400)
+            return response_data, status_code
 
         existing = db.session.execute(
             db.select(MultimediaResources).where(
                 MultimediaResources.lesson_id == data.get('lesson_id'),
                 MultimediaResources.order == data.get('order'))).scalar()
         if existing:
-            # HELPER: simple_error_response - Orden duplicado
-            return simple_error_response('Ya existe un recurso con este orden', 409)
+            response_data, status_code = simple_error_response('Ya existe un recurso con este orden', 409)
+            return response_data, status_code
 
         row = MultimediaResources(
             resource_type=data.get('type'),
@@ -3019,15 +2878,14 @@ def multimedia_resources():
         db.session.add(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Recurso creado
-        return simple_success_response(row.serialize(), 'Recurso multimedia creado'), 201
+        # DESEMPAQUETADO: Evitar TypeError y devolver código 201
+        response_data, _ = simple_success_response(row.serialize(), 'Recurso multimedia creado')
+        return response_data, 201
 
     # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # GET/PUT/DELETE: Operaciones CRUD para recurso multimedia específico
-
-
 @api.route('/multimedia-resources/<int:resource_id>', methods=['GET', 'PUT', 'DELETE'])
 @jwt_required()
 def multimedia_resource(resource_id):
@@ -3044,17 +2902,20 @@ def multimedia_resource(resource_id):
             MultimediaResources.resource_id == resource_id)).scalar()
 
     if not row:
-        # HELPER: simple_error_response - Recurso no encontrado
-        return simple_error_response('Recurso multimedia no encontrado', 404)
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_error_response('Recurso multimedia no encontrado', 404)
+        return response_data, status_code
 
     if request.method == 'GET':
-        # HELPER: simple_success_response - Detalles del recurso
-        return simple_success_response(row.serialize(), 'Detalle del recurso multimedia')
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_success_response(row.serialize(), 'Detalle del recurso multimedia')
+        return response_data, status_code
 
     if request.method == 'PUT':
         if not is_admin and user_role != 'teacher':
-            # HELPER: simple_error_response - Sin permisos para actualizar
-            return simple_error_response('No autorizado para actualizar recursos', 403)
+            # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+            response_data, status_code = simple_error_response('No autorizado para actualizar recursos', 403)
+            return response_data, status_code
 
         # HELPER: validate_request_json - Validar datos de actualización
         data, error_response, status = validate_request_json()
@@ -3064,14 +2925,14 @@ def multimedia_resource(resource_id):
         if 'type' in data:
             allowed_types = ['video', 'image', 'gif', 'animation', 'document']
             if data['type'] not in allowed_types:
-                # HELPER: simple_error_response - Tipo inválido
-                return simple_error_response('Tipo de recurso inválido', 400)
+                response_data, status_code = simple_error_response('Tipo de recurso inválido', 400)
+                return response_data, status_code
             row.resource_type = data['type']
 
         if 'url' in data:
             if not data['url'].startswith(('http://', 'https://')):
-                # HELPER: simple_error_response - URL inválida
-                return simple_error_response('URL inválida', 400)
+                response_data, status_code = simple_error_response('URL inválida', 400)
+                return response_data, status_code
             row.url = data['url']
 
         if 'order' in data:
@@ -3085,26 +2946,27 @@ def multimedia_resource(resource_id):
 
         db.session.commit()
 
-        # HELPER: simple_success_response - Recurso actualizado
-        return simple_success_response(row.serialize(), 'Recurso multimedia actualizado')
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_success_response(row.serialize(), 'Recurso multimedia actualizado')
+        return response_data, status_code
 
     if request.method == 'DELETE':
         if not is_admin:
-            # HELPER: simple_error_response - Solo admin puede eliminar
-            return simple_error_response('Solo administradores pueden eliminar recursos', 403)
+            # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+            response_data, status_code = simple_error_response('Solo administradores pueden eliminar recursos', 403)
+            return response_data, status_code
 
         db.session.delete(row)
         db.session.commit()
 
-        # HELPER: simple_success_response - Recurso eliminado
-        return simple_success_response({}, 'Recurso multimedia eliminado')
+        # DESEMPAQUETADO: Evitar TypeError de tupla anidada
+        response_data, status_code = simple_success_response({}, 'Recurso multimedia eliminado')
+        return response_data, status_code
 
     # HELPER: method_not_allowed_response - Método no permitido
     return method_not_allowed_response()
 
 # POST: Webhook de Stripe para procesar pagos
-
-
 @api.route('/stripe-webhook', methods=['POST'])
 def stripe_webhook():
     # Obtenemos el JSON crudo que envía Stripe
